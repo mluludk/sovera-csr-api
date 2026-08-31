@@ -173,6 +173,7 @@ CREATE INDEX idx_deals_org_id ON deal_pipelines(org_id);
 * **FR-1.3:** Queue worker memicu LLM Parsing untuk mengekstrak entitas JSON:
   * `company_name`, `industry_sector`, `csr_pillar_focus`, `target_regions`, `estimated_budget_signal`, `trigger_event`, `intent_score` (1–100).
 * **FR-1.4:** Sistem menghasilkan *vector embedding* (1536 dimensi) dari teks ringkasan profil prospek dan menyimpannya ke `public_corporate_signals`.
+* **FR-1.5:** Backend secara periodik (cron job / scheduled task) memicu *scraper service* via HTTP POST ke URL yang dikonfigurasi pada `SCRAPER_SERVICE_URL` dengan mengirimkan parameter `WEBHOOK_URL` sebagai URL tujuan balik penerima payload hasil scraping. Variabel lingkungan wajib yang diperlukan: `SCRAPER_SERVICE_URL` dan `WEBHOOK_URL`.
 
 ### Module 2: ESG-to-Asnaf Semantic Matching Engine
 * **FR-2.1:** Sistem menyediakan antarmuka CRUD bagi admin lembaga untuk mendaftarkan program unggulan beserta deskripsi lengkapnya.

@@ -15,6 +15,8 @@ type Config struct {
 	WebhookSecretKey  string
 	JWTSecret         string
 	AIAPIKey          string
+	ScraperServiceURL string
+	WebhookURL        string
 }
 
 func LoadConfig() *Config {
@@ -24,13 +26,15 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		Port:             getEnv("PORT", "4000"),
-		Environment:      getEnv("NODE_ENV", "development"),
-		DatabaseURL:      getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sovera_db?sslmode=disable"),
-		RedisURL:         getEnv("REDIS_URL", "localhost:6379"),
-		WebhookSecretKey: getEnv("WEBHOOK_SECRET_KEY", "super_secret_crawler_key_123"),
-		JWTSecret:        getEnv("JWT_SECRET", "super_secret_jwt_key_enterprise"),
-		AIAPIKey:         getEnv("AI_API_KEY", ""),
+		Port:              getEnv("PORT", "4000"),
+		Environment:       getEnv("NODE_ENV", "development"),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sovera_db?sslmode=disable"),
+		RedisURL:          getEnv("REDIS_URL", "localhost:6379"),
+		WebhookSecretKey:  getEnv("WEBHOOK_SECRET_KEY", "super_secret_crawler_key_123"),
+		JWTSecret:         getEnv("JWT_SECRET", "super_secret_jwt_key_enterprise"),
+		AIAPIKey:          getEnv("AI_API_KEY", ""),
+		ScraperServiceURL: getEnv("SCRAPER_SERVICE_URL", "http://localhost:8000/api/scrape"),
+		WebhookURL:        getEnv("WEBHOOK_URL", "http://localhost:4000/api/v1/webhooks/crawler"),
 	}
 }
 
