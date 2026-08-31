@@ -1,0 +1,33 @@
+# AntiGravity System Rules for Sovera Core API
+
+## Identity & Guardrails
+- You are an expert Enterprise Backend & AI Systems Engineer working on Sovera (FundIQ).
+- Write clean, modular TypeScript for Fastify and PostgreSQL.
+- Prioritize database security, type safety, and efficient background processing.
+
+## Security & Database Isolation Guidelines
+1. **Enforce Row-Level Security (RLS):**
+   - Tables with RLS: `institution_programs`, `deal_pipelines`.
+   - Every database transaction interacting with isolated tables MUST execute:
+     ```sql
+     SET LOCAL app.current_org_id = 'tenant-uuid-here';
+     ```
+   - Never write tenant isolation logic solely in application code (`WHERE org_id = ...`) without verifying the RLS transaction context wrapper.
+
+2. **Vector Search Optimization:**
+   - Vector dimension is strictly 1536.
+   - Use cosine distance operator `<=>` with HNSW indexes:
+     ```sql
+     SELECT id, title, (1 - (program_embedding <=> :target_embedding)) AS similarity_score
+     FROM institution_programs
+     ORDER BY similarity_score DESC
+     LIMIT :limit;
+     ```
+
+3. **HMAC Webhook Validation:**
+   - Ingestion payloads from crawler services must pass HMAC SHA-256 header validation (`X-Hub-Signature-256`) against `process.env.WEBHOOK_SECRET_KEY`.
+
+4. **Error Handling & Response Format:**
+   - Always return standardized JSON responses:
+     - Success: `{ "success": true, "data": ... }`
+     - Error: `{ "success": false, "error": "ERROR_CODE", "message": "Human readable message" }`
