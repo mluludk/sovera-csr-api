@@ -1,6 +1,6 @@
 module sovera-core-api
 
-go 1.23
+go 1.25.0
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.5
@@ -9,6 +9,7 @@ require (
 	github.com/hibiken/asynq v0.24.1
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/pgvector/pgvector-go v0.4.1
 )
 
 require (

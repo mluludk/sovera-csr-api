@@ -48,7 +48,10 @@ func main() {
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisURL})
 	defer asynqClient.Close()
 
-	// 4. Create Fiber Web Application
+	// 4. Initialize Repositories
+	signalRepo := repository.NewSignalRepository(dbPool)
+
+	// 5. Create Fiber Web Application
 	app := fiber.New(fiber.Config{
 		AppName:      "Sovera Core API & Intelligence Engine v1.0",
 		ReadTimeout:  10 * time.Second,
@@ -56,15 +59,16 @@ func main() {
 		IdleTimeout:  30 * time.Second,
 	})
 
-	// 5. Global Middlewares
+	// 6. Global Middlewares
 	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// 6. Register Handlers & Controllers
+	// 7. Register Handlers & Controllers
 	healthHandler := handler.NewHealthHandler(dbPool)
 	webhookHandler := handler.NewWebhookHandler(dbPool, asynqClient)
+	signalHandler := handler.NewSignalHandler(signalRepo)
 
 	// Root & Health check routes
 	app.Get("/health", healthHandler.HealthCheck)
@@ -79,7 +83,11 @@ func main() {
 		webhookHandler.HandleCrawlerWebhook,
 	)
 
-	// 7. Graceful Shutdown Handler
+	// Corporate Intelligence Feeds API
+	apiV1.Get("/signals", signalHandler.ListSignals)
+	apiV1.Get("/signals/:id/match-programs", signalHandler.MatchPrograms)
+
+	// 8. Graceful Shutdown Handler
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 

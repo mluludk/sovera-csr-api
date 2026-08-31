@@ -3,12 +3,15 @@ package handler
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"sovera-core-api/internal/queue"
 )
 
 type WebhookHandler struct {
@@ -61,8 +64,31 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 
 	jobID := "job_ingest_" + uuid.New().String()[:8]
 
-	// Dispatches job asynchronously to Asynq queue (stub queue enqueue if client is configured)
-	// Return HTTP 202 Accepted immediately
+	// Enqueue Asynq task into Redis
+	taskPayload := queue.LLMExtractionPayload{
+		JobID:           jobID,
+		TaskID:          payload.TaskID,
+		SourceType:      payload.SourceType,
+		SourceURL:       payload.SourceURL,
+		AuthorOrAccount: payload.AuthorOrAccount,
+		PublishedDate:   payload.PublishedDate,
+		RawText:         payload.RawText,
+		MarkdownContent: payload.MarkdownContent,
+		ContentHash:     contentHash,
+	}
+
+	if h.asynqClient != nil {
+		task, err := queue.NewLLMExtractionTask(taskPayload)
+		if err == nil {
+			info, enqueueErr := h.asynqClient.Enqueue(task)
+			if enqueueErr != nil {
+				log.Printf("Failed to enqueue extraction task to Asynq: %v", enqueueErr)
+			} else {
+				log.Printf("Successfully enqueued task [%s] to queue [%s]", info.ID, info.Queue)
+			}
+		}
+	}
+
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"success":      true,
 		"message":      "Payload queued for background ingestion & LLM extraction",
