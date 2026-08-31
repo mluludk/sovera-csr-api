@@ -18,6 +18,8 @@ import (
 	"sovera-core-api/internal/handler"
 	"sovera-core-api/internal/middleware"
 	"sovera-core-api/internal/repository"
+	"sovera-core-api/internal/service/ai"
+	"sovera-core-api/internal/service/exporter"
 )
 
 func main() {
@@ -48,8 +50,13 @@ func main() {
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisURL})
 	defer asynqClient.Close()
 
-	// 4. Initialize Repositories
+	// 4. Initialize Services & Repositories
+	geminiService := ai.NewGeminiService(cfg.AIAPIKey)
+	docExporter := exporter.NewDocumentExporter()
+
 	signalRepo := repository.NewSignalRepository(dbPool)
+	programRepo := repository.NewProgramRepository(dbPool)
+	dealRepo := repository.NewDealRepository(dbPool)
 
 	// 5. Create Fiber Web Application
 	app := fiber.New(fiber.Config{
@@ -69,6 +76,8 @@ func main() {
 	healthHandler := handler.NewHealthHandler(dbPool)
 	webhookHandler := handler.NewWebhookHandler(dbPool, asynqClient)
 	signalHandler := handler.NewSignalHandler(signalRepo)
+	programHandler := handler.NewProgramHandler(programRepo, geminiService)
+	dealHandler := handler.NewDealHandler(dealRepo, programRepo, signalRepo, geminiService, docExporter)
 
 	// Root & Health check routes
 	app.Get("/health", healthHandler.HealthCheck)
@@ -86,6 +95,17 @@ func main() {
 	// Corporate Intelligence Feeds API
 	apiV1.Get("/signals", signalHandler.ListSignals)
 	apiV1.Get("/signals/:id/match-programs", signalHandler.MatchPrograms)
+
+	// Institution Programs API (RLS Enforced)
+	apiV1.Get("/programs", programHandler.ListPrograms)
+	apiV1.Post("/programs", programHandler.CreateProgram)
+
+	// Deal Pipeline & Proposal Studio API (RLS Enforced)
+	apiV1.Get("/deals", dealHandler.ListDeals)
+	apiV1.Post("/deals", dealHandler.CreateDeal)
+	apiV1.Patch("/deals/:id/stage", dealHandler.UpdateStage)
+	apiV1.Post("/deals/:id/generate-pitch", dealHandler.GeneratePitch)
+	apiV1.Post("/deals/:id/export", dealHandler.ExportProposal)
 
 	// 8. Graceful Shutdown Handler
 	shutdownChan := make(chan os.Signal, 1)
