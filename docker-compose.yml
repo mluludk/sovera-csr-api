@@ -13,6 +13,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -22,6 +27,56 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: sovera_core_api
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sovera_db?sslmode=disable
+      - REDIS_URL=redis:6379
+      - WEBHOOK_SECRET_KEY=super_secret_crawler_key_123
+      - JWT_SECRET=super_secret_jwt_key_enterprise
+      - AI_API_KEY=${AI_API_KEY}
+      - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-http://host.docker.internal:8000/api/scrape-tasks}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: sovera_core_worker
+    restart: always
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sovera_db?sslmode=disable
+      - REDIS_URL=redis:6379
+      - WEBHOOK_SECRET_KEY=super_secret_crawler_key_123
+      - JWT_SECRET=super_secret_jwt_key_enterprise
+      - AI_API_KEY=${AI_API_KEY}
+      - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-http://host.docker.internal:8000/api/scrape-tasks}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
