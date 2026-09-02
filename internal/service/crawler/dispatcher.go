@@ -36,7 +36,7 @@ func (d *Dispatcher) DispatchTask(ctx context.Context, target model.CrawlingTarg
 		TaskID:       taskID,
 		TargetID:     target.ID,
 		ClientOrigin: "sovera_b2b_engine",
-		SourceType:   target.SourceType,
+		SourceType:   mapSourceType(target.SourceType),
 		TargetURL:    target.TargetURL,
 		CallbackURL:  d.cfg.WebhookURL,
 		Config: &model.ScrapeTaskConfig{
@@ -75,4 +75,17 @@ func (d *Dispatcher) DispatchTask(ctx context.Context, target model.CrawlingTarg
 	}
 
 	return resp.StatusCode, nil
+}
+
+func mapSourceType(st string) string {
+	switch st {
+	case "IDX_ANNOUNCEMENT", "CORPORATE_NEWSROOM":
+		return "NEWS_ARTICLE"
+	case "PDF_REPORTS":
+		return "PDF_DOCUMENT"
+	case "PDF_DOCUMENT", "NEWS_ARTICLE", "NEWS_RSS", "BUMN_PORTAL", "GRANTS_PORTAL", "RAW_WEB", "SOCIAL_POST":
+		return st
+	default:
+		return "NEWS_ARTICLE"
+	}
 }
