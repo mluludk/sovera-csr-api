@@ -13,8 +13,12 @@ type CrawlingTarget struct {
 	LastScrapedAt      *time.Time `json:"last_scraped_at,omitempty" db:"last_scraped_at"`
 	NextRunAt          time.Time  `json:"next_run_at" db:"next_run_at"`
 	IsActive           bool       `json:"is_active" db:"is_active"`
-	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
+	ConsecutiveFailures int        `json:"consecutive_failures" db:"consecutive_failures"`
+	LastHTTPStatus      *int       `json:"last_http_status,omitempty" db:"last_http_status"`
+	LastErrorMsg        *string    `json:"last_error_message,omitempty" db:"last_error_message"`
+	HealthStatus        string     `json:"health_status" db:"health_status"` // HEALTHY, DEGRADED, DISABLED_DEAD_LINK
+	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type CrawlingLog struct {

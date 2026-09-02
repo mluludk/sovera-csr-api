@@ -18,13 +18,15 @@ func NewCrawlerRepository(pool *pgxpool.Pool) *CrawlerRepository {
 	return &CrawlerRepository{pool: pool}
 }
 
-// GetDueTargets retrieves active crawling targets that are due for scraping
+// GetDueTargets retrieves active crawling targets that are due for scraping.
+// Ignores targets that have been disabled due to dead links (404).
 func (r *CrawlerRepository) GetDueTargets(ctx context.Context, limit int) ([]model.CrawlingTarget, error) {
 	query := `
 		SELECT id, source_name, source_type, target_url, check_interval_hours, 
-		       last_scraped_at, next_run_at, is_active, created_at, updated_at
+		       last_scraped_at, next_run_at, is_active, consecutive_failures,
+		       last_http_status, last_error_message, health_status, created_at, updated_at
 		FROM crawling_targets
-		WHERE is_active = TRUE AND next_run_at <= $1
+		WHERE is_active = TRUE AND health_status != 'DISABLED_DEAD_LINK' AND next_run_at <= $1
 		ORDER BY next_run_at ASC
 		LIMIT $2;
 	`
@@ -39,7 +41,8 @@ func (r *CrawlerRepository) GetDueTargets(ctx context.Context, limit int) ([]mod
 		var t model.CrawlingTarget
 		err := rows.Scan(
 			&t.ID, &t.SourceName, &t.SourceType, &t.TargetURL, &t.CheckIntervalHours,
-			&t.LastScrapedAt, &t.NextRunAt, &t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+			&t.LastScrapedAt, &t.NextRunAt, &t.IsActive, &t.ConsecutiveFailures,
+			&t.LastHTTPStatus, &t.LastErrorMsg, &t.HealthStatus, &t.CreatedAt, &t.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan crawling target: %w", err)
@@ -61,6 +64,53 @@ func (r *CrawlerRepository) UpdateTargetNextRun(ctx context.Context, targetID st
 	_, err := r.pool.Exec(ctx, query, targetID, intervalHours)
 	if err != nil {
 		return fmt.Errorf("failed to update target next run: %w", err)
+	}
+	return nil
+}
+
+// RecordSuccess resets consecutive_failures and sets health_status to HEALTHY
+func (r *CrawlerRepository) RecordSuccess(ctx context.Context, targetID string, httpStatusCode int) error {
+	query := `
+		UPDATE crawling_targets
+		SET consecutive_failures = 0,
+		    last_http_status = $2,
+		    last_error_message = NULL,
+		    health_status = 'HEALTHY',
+		    updated_at = NOW()
+		WHERE id = $1;
+	`
+	_, err := r.pool.Exec(ctx, query, targetID, httpStatusCode)
+	if err != nil {
+		return fmt.Errorf("failed to record crawling target success: %w", err)
+	}
+	return nil
+}
+
+// RecordFailure increments consecutive_failures and trips the circuit breaker if 404 or max retries exceeded.
+func (r *CrawlerRepository) RecordFailure(ctx context.Context, targetID string, httpStatusCode int, errorMsg string) error {
+	// Circuit breaker condition:
+	// - If httpStatusCode is 404 (Not Found) or 410 (Gone), immediately mark as DISABLED_DEAD_LINK and set is_active = FALSE.
+	// - If consecutive_failures + 1 >= 5, also set health_status = 'DISABLED_DEAD_LINK' and is_active = FALSE.
+	// - Otherwise, set health_status = 'DEGRADED'.
+	query := `
+		UPDATE crawling_targets
+		SET consecutive_failures = consecutive_failures + 1,
+		    last_http_status = $2,
+		    last_error_message = $3,
+		    health_status = CASE 
+		        WHEN $2 IN (404, 410) OR consecutive_failures + 1 >= 5 THEN 'DISABLED_DEAD_LINK'
+		        ELSE 'DEGRADED'
+		    END,
+		    is_active = CASE 
+		        WHEN $2 IN (404, 410) OR consecutive_failures + 1 >= 5 THEN FALSE
+		        ELSE is_active
+		    END,
+		    updated_at = NOW()
+		WHERE id = $1;
+	`
+	_, err := r.pool.Exec(ctx, query, targetID, httpStatusCode, errorMsg)
+	if err != nil {
+		return fmt.Errorf("failed to record crawling target failure: %w", err)
 	}
 	return nil
 }
