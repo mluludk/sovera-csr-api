@@ -35,7 +35,7 @@ type CreateProgramPayload struct {
 func (h *ProgramHandler) ListPrograms(c *fiber.Ctx) error {
 	orgID, ok := c.Locals("org_id").(string)
 	if !ok || orgID == "" {
-		orgID = "org_77123aa-8819-4c12-99a1-00123456789a"
+		orgID = "77123aaa-8819-4c12-99a1-00123456789a"
 	}
 
 	programs, err := h.programRepo.ListPrograms(c.Context(), orgID)
@@ -55,7 +55,7 @@ func (h *ProgramHandler) ListPrograms(c *fiber.Ctx) error {
 func (h *ProgramHandler) CreateProgram(c *fiber.Ctx) error {
 	orgID, ok := c.Locals("org_id").(string)
 	if !ok || orgID == "" {
-		orgID = "org_77123aa-8819-4c12-99a1-00123456789a"
+		orgID = "77123aaa-8819-4c12-99a1-00123456789a"
 	}
 
 	var payload CreateProgramPayload
