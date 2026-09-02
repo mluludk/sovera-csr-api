@@ -44,14 +44,18 @@ Menerima hasil scraping mentah dari crawler service dan memasukkannya ke antrean
 ```json
 {
   "task_id": "job_idx_20260831_001",
+  "target_id": "a0ac2304-d0d4-4d14-a5db-ea22966c71c6",
+  "status": "COMPLETED",
+  "http_status_code": 200,
+  "error_message": "",
   "source_type": "BEI_REPORT",
   "source_url": "https://idx.co.id/reports/emiten_csr_2025.pdf",
   "author_or_account": "PT Maju Bersama Tbk",
   "published_date": "2026-08-30",
   "raw_text": "PT Maju Bersama Tbk mengalokasikan dana TJSL sebesar Rp 25 Miliar untuk pilar pendidikan digital dan beasiswa 3T...",
-  "markdown_content": "# Laporan TJSL 2025\n\nRealisasi anggaran pilar pendidikan..."
+  "markdown_content": "# Laporan TJSL 2025\n\nRealisasi anggaran pilar pendidikan...",
+  "execution_time_ms": 1450
 }
-
 ```
 
 #### Responses

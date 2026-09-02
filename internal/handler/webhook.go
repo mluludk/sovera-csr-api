@@ -33,14 +33,19 @@ func NewWebhookHandler(dbPool *pgxpool.Pool, asynqClient *asynq.Client) *Webhook
 	}
 }
 
+// CrawlerPayload represents the webhook callback payload from the web scraper service.
 type CrawlerPayload struct {
 	TaskID          string `json:"task_id"`
+	TargetID        string `json:"target_id,omitempty"`
+	HTTPStatusCode  int    `json:"http_status_code,omitempty"` // e.g. 200, 404, 403, 500
+	Status          string `json:"status,omitempty"`           // COMPLETED, FAILED
+	ErrorMessage    string `json:"error_message,omitempty"`
 	SourceType      string `json:"source_type"`
 	SourceURL       string `json:"source_url"`
-	AuthorOrAccount string `json:"author_or_account"`
-	PublishedDate   string `json:"published_date"`
-	RawText         string `json:"raw_text"`
-	MarkdownContent string `json:"markdown_content"`
+	AuthorOrAccount string `json:"author_or_account,omitempty"`
+	PublishedDate   string `json:"published_date,omitempty"`
+	RawText         string `json:"raw_text,omitempty"`
+	MarkdownContent string `json:"markdown_content,omitempty"`
 	ExecutionTimeMs int    `json:"execution_time_ms,omitempty"`
 }
 
@@ -54,12 +59,61 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 		})
 	}
 
+	httpStatusCode := payload.HTTPStatusCode
+	if httpStatusCode == 0 {
+		if payload.Status == "FAILED" {
+			httpStatusCode = 500
+		} else {
+			httpStatusCode = 200
+		}
+	}
+
+	execTime := payload.ExecutionTimeMs
+	if execTime == 0 {
+		execTime = 1200
+	}
+
+	// ─── Handle Scraper Failure Callback ──────────────────────────────────────
+	if payload.Status == "FAILED" || httpStatusCode >= 400 {
+		errMsg := payload.ErrorMessage
+		if errMsg == "" {
+			errMsg = "Scraper returned failure HTTP status"
+		}
+
+		if h.crawlerRepo != nil {
+			// 1. Log failure in crawling_logs
+			if payload.TaskID != "" {
+				_ = h.crawlerRepo.UpdateLogStatus(c.Context(), payload.TaskID, "FAILED", &execTime, nil, &errMsg)
+			}
+			// 2. Trigger Circuit Breaker in crawling_targets if target_id present
+			if payload.TargetID != "" {
+				if err := h.crawlerRepo.RecordFailure(c.Context(), payload.TargetID, httpStatusCode, errMsg); err != nil {
+					log.Printf("Notice: Could not record failure for TargetID %s: %v", payload.TargetID, err)
+				}
+			}
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success": true,
+			"message": "Scraper failure recorded and target health updated",
+			"status":  "FAILED",
+		})
+	}
+
+	// ─── Handle Scraper Success Callback ──────────────────────────────────────
 	if payload.RawText == "" && payload.MarkdownContent == "" {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"success": false,
 			"error":   "EMPTY_CONTENT",
-			"message": "Payload raw_text or markdown_content cannot be empty",
+			"message": "Payload raw_text or markdown_content cannot be empty for successful scrapes",
 		})
+	}
+
+	// Record success in target health (resets consecutive_failures)
+	if payload.TargetID != "" && h.crawlerRepo != nil {
+		if err := h.crawlerRepo.RecordSuccess(c.Context(), payload.TargetID, httpStatusCode); err != nil {
+			log.Printf("Notice: Could not record success for TargetID %s: %v", payload.TargetID, err)
+		}
 	}
 
 	// Calculate SHA-256 content_hash for deduplication
@@ -72,18 +126,14 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 
 	jobID := "job_ingest_" + uuid.New().String()[:8]
 
-	// Update crawling_logs if task_id exists
+	// Update crawling_logs for completed task
 	if payload.TaskID != "" && h.crawlerRepo != nil {
-		execTime := payload.ExecutionTimeMs
-		if execTime == 0 {
-			execTime = 1200
-		}
 		if err := h.crawlerRepo.UpdateLogStatus(c.Context(), payload.TaskID, "COMPLETED", &execTime, &contentHash, nil); err != nil {
 			log.Printf("Notice: Could not update crawling_logs for TaskID %s: %v", payload.TaskID, err)
 		}
 	}
 
-	// Enqueue Asynq task into Redis
+	// Enqueue Asynq task into Redis for LLM extraction
 	taskPayload := queue.LLMExtractionPayload{
 		JobID:           jobID,
 		TaskID:          payload.TaskID,
