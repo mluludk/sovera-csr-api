@@ -35,10 +35,11 @@ Membuat pekerjaan ekstraksi dokumen PDF (*Sustainability Report*), portal berita
 ```json
 {
   "task_id": "job_csr_idx_991823",
+  "target_id": "a0ac2304-d0d4-4d14-a5db-ea22966c71c6",
   "client_origin": "sovera_b2b_engine",
   "source_type": "PDF_DOCUMENT",
   "target_url": "https://example-corpo.com/reports/sustainability-report-2025.pdf",
-  "callback_url": "https://engine.domain.com/webhooks/crawler-response",
+  "callback_url": "https://engine.domain.com/webhooks/crawler",
   "config": {
     "render_js": false,
     "bypass_anti_bot": true,
@@ -50,8 +51,9 @@ Membuat pekerjaan ekstraksi dokumen PDF (*Sustainability Report*), portal berita
 | Parameter | Tipe | Wajib | Keterangan |
 | :--- | :--- | :---: | :--- |
 | `task_id` | `string` | Ya | ID Unik pekerjaan dari sistem pemanggil |
+| `target_id` | `string` | Tidak | UUID Target dari `crawling_targets` (untuk pelacakan Circuit Breaker) |
 | `client_origin` | `string` | Ya | Identifikasi asal sistem pemanggil (misal: `sovera_b2b_engine`) |
-| `source_type` | `string` | Ya | Pilihan: `PDF_DOCUMENT`, `NEWS_ARTICLE`, `RAW_WEB`, `SOCIAL_POST` |
+| `source_type` | `string` | Ya | Pilihan: `PDF_DOCUMENT`, `NEWS_ARTICLE`, `NEWS_RSS`, `BUMN_PORTAL`, `GRANTS_PORTAL` |
 | `target_url` | `string` | Ya | URL target dokumen PDF / Artikel / Web / Postingan |
 | `callback_url` | `string` | Ya | URL Webhook penerima hasil callback |
 | `config.render_js` | `boolean` | Tidak | Batasi render JS (Default: `false`) |
@@ -65,46 +67,64 @@ Membuat pekerjaan ekstraksi dokumen PDF (*Sustainability Report*), portal berita
 }
 ```
 
+---
+
 #### **Webhook Callback Delivery Payload (`POST` to `callback_url`)**
+
+Crawler service wajib mengirimkan callback ke `callback_url` dengan header otentikasi HMAC SHA-256:
+```http
+Content-Type: application/json
+X-Hub-Signature-256: sha256=<hmac_hex_hash>
+```
+
+##### **A. Payload Callback Sukses (`status: "COMPLETED"`, `http_status_code: 200`)**
 ```json
 {
-  "event": "csr.task_completed",
-  "job_id": "job_csr_idx_991823",
-  "target_type": "PDF_DOCUMENT",
-  "platform": "CORPORATE_SITE",
+  "task_id": "job_csr_idx_991823",
+  "target_id": "a0ac2304-d0d4-4d14-a5db-ea22966c71c6",
   "status": "COMPLETED",
-  "timestamp": "2026-08-31T16:20:00Z",
-  "data": {
-    "execution_time_ms": 1565,
-    "content_hash": "ff67a9d764d6a2367a187734e697f6a53217db9a21c101d410a113ca871a299d",
-    "source_metadata": {
-      "source_type": "PDF_DOCUMENT",
-      "target_url": "https://example-corpo.com/reports/sustainability-report-2025.pdf",
-      "domain": "example-corpo.com",
-      "platform": "CORPORATE_SITE",
-      "published_date": "2026-04-12T00:00:00Z",
-      "author_or_account": "PT Maju Sejahtera Tbk"
-    },
-    "raw_data": {
-      "title": "Laporan Keberlanjutan 2025",
-      "raw_text": "Teks mentah hasil ekstraksi...",
-      "markdown_content": "# Laporan Keberlanjutan 2025\n\n...",
-      "media_urls": [],
-      "attachments": [
-        {
-          "file_name": "sustainability-report-2025.pdf",
-          "file_size_bytes": 14205820
-        }
-      ],
-      "engagement_metrics": {
-        "likes_count": 0,
-        "comments_count": 0,
-        "shares_count": 0
-      }
-    }
-  }
+  "http_status_code": 200,
+  "error_message": "",
+  "source_type": "PDF_DOCUMENT",
+  "source_url": "https://example-corpo.com/reports/sustainability-report-2025.pdf",
+  "author_or_account": "PT Maju Sejahtera Tbk",
+  "published_date": "2026-04-12T00:00:00Z",
+  "raw_text": "PT Maju Sejahtera Tbk mengalokasikan dana TJSL sebesar Rp 25 Miliar...",
+  "markdown_content": "# Laporan Keberlanjutan 2025\n\nRealisasi pilar pendidikan...",
+  "execution_time_ms": 1565
 }
 ```
+
+##### **B. Payload Callback Gagal / Dead Link (`status: "FAILED"`, `http_status_code: 404 / 500`)**
+```json
+{
+  "task_id": "job_csr_idx_991823",
+  "target_id": "a0ac2304-d0d4-4d14-a5db-ea22966c71c6",
+  "status": "FAILED",
+  "http_status_code": 404,
+  "error_message": "HTTP 404 Not Found - Target URL does not exist or has been removed",
+  "source_type": "PDF_DOCUMENT",
+  "source_url": "https://example-corpo.com/reports/sustainability-report-2025.pdf",
+  "execution_time_ms": 450
+}
+```
+
+| Atribut Webhook | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| `task_id` | `string` | ID unik pekerjaan scraping |
+| `target_id` | `string` | ID Target dari tabel `crawling_targets` (digunakan untuk Circuit Breaker) |
+| `status` | `string` | `'COMPLETED'` jika sukses, `'FAILED'` jika gagal |
+| `http_status_code` | `integer` | Kode status HTTP dari situs target (contoh: `200`, `404`, `403`, `500`) |
+| `error_message` | `string` | Rincian error jika status `'FAILED'` (contoh: `HTTP 404 Not Found`) |
+| `source_type` | `string` | Tipe sumber data |
+| `source_url` | `string` | URL halaman/berkas yang di-scrape |
+| `author_or_account` | `string` | Nama emiten / penerbit / akun |
+| `published_date` | `string` | Tanggal terbit konten |
+| `raw_text` | `string` | Teks mentah hasil ekstraksi |
+| `markdown_content` | `string` | Konten berformat markdown |
+| `execution_time_ms` | `integer` | Waktu eksekusi scraping dalam milidetik |
+
+---
 
 #### **Get Task Status & Details (v2 Polling API)**
 Mengambil status dan informasi task ingestion CSR berbasis `task_id`.
@@ -115,11 +135,13 @@ Mengambil status dan informasi task ingestion CSR berbasis `task_id`.
 ```json
 {
   "task_id": "job_csr_idx_991823",
+  "target_id": "a0ac2304-d0d4-4d14-a5db-ea22966c71c6",
   "client_origin": "sovera_b2b_engine",
   "source_type": "PDF_DOCUMENT",
   "target_url": "https://example-corpo.com/reports/sustainability-report-2025.pdf",
-  "callback_url": "https://engine.domain.com/webhooks/crawler-response",
+  "callback_url": "https://engine.domain.com/webhooks/crawler",
   "status": "COMPLETED",
+  "http_status_code": 200,
   "execution_time_ms": 1565,
   "content_hash": "ff67a9d764d6a2367a187734e697f6a53217db9a21c101d410a113ca871a299d",
   "created_at": "2026-08-31T16:20:00Z",
