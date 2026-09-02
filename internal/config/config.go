@@ -33,7 +33,7 @@ func LoadConfig() *Config {
 		WebhookSecretKey:  getEnv("WEBHOOK_SECRET_KEY", "super_secret_crawler_key_123"),
 		JWTSecret:         getEnv("JWT_SECRET", "super_secret_jwt_key_enterprise"),
 		AIAPIKey:          getEnv("AI_API_KEY", ""),
-		ScraperServiceURL: getEnv("SCRAPER_SERVICE_URL", "http://localhost:8000/api/scrape"),
+		ScraperServiceURL: getEnv("SCRAPER_SERVICE_URL", "https://api-scraper.megasolusindo.com/api/v1/scrape-tasks"),
 		WebhookURL:        getEnv("WEBHOOK_URL", "http://localhost:4000/api/v1/webhooks/crawler"),
 	}
 }
