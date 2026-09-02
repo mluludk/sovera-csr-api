@@ -12,13 +12,19 @@ Sovera mengadopsi arsitektur **Decoupled 3-Tier Enterprise Pattern** yang memisa
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                 1. External Scraper Service                 │
-│   - Cron Trigger: IDX / RSS Feeds / Corporate PDF / Socials │
+│       1. Sovera Core Backend (Cron Scheduler Orchestrator)  │
+│   - Periodic Tick: Target DB Registry (crawling_targets)    │
 └──────────────────────────────┬──────────────────────────────┘
-                               │ HTTP POST (Payload + HMAC SHA256)
+                               │ HTTP POST (Dispatch Task to SCRAPER_SERVICE_URL)
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│       2. Sovera Core Backend API & Worker (Go-Fiber)        │
+│            2. External WebScraper Execution Service         │
+│   - Render PDF / Anti-Bot Bypass / Raw Text Extraction      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTP Webhook POST (Payload + HMAC SHA256)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│       3. Sovera Core Backend API & Worker (Go-Fiber)        │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │ Webhook Ingestion Controller (HMAC Verification)      │  │
 │  └───────────────────────────┬───────────────────────────┘  │
@@ -167,6 +173,7 @@ sovera-core-api/
 ├── docs/
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
+│   ├── CRAWLER_ORCHESTRATION_SPEC.md
 │   ├── DATABASE_SCHEMA.md
 │   └── API_SPEC.md
 ├── cmd/
