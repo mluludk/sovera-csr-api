@@ -20,9 +20,11 @@ func (h *HealthHandler) HealthCheck(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	dbStatus := "UP"
-	if err := h.dbPool.Ping(ctx); err != nil {
-		dbStatus = "DOWN"
+	dbStatus := "DOWN"
+	if h.dbPool != nil {
+		if err := h.dbPool.Ping(ctx); err == nil {
+			dbStatus = "UP"
+		}
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
