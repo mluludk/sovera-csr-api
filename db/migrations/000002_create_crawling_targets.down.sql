@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS crawling_logs CASCADE;
+DROP TABLE IF EXISTS crawling_targets CASCADE;

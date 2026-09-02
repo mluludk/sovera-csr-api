@@ -11,6 +11,7 @@ import (
 	"sovera-core-api/internal/queue"
 	"sovera-core-api/internal/repository"
 	"sovera-core-api/internal/service/ai"
+	"sovera-core-api/internal/service/crawler"
 )
 
 func main() {
@@ -31,14 +32,41 @@ func main() {
 	// 2. Services & Worker Dependencies
 	geminiService := ai.NewGeminiService(cfg.AIAPIKey)
 	signalRepo := repository.NewSignalRepository(dbPool)
-	extractionWorker := queue.NewExtractionWorker(geminiService, signalRepo)
+	crawlerRepo := repository.NewCrawlerRepository(dbPool)
+	dispatcher := crawler.NewDispatcher(cfg)
 
-	// 3. Asynq Server Setup
+	extractionWorker := queue.NewExtractionWorker(geminiService, signalRepo)
+	dispatcherWorker := queue.NewCrawlerDispatcherHandler(crawlerRepo, dispatcher)
+
+	// 3. Asynq Scheduler for Periodic Tasks
+	scheduler := asynq.NewScheduler(
+		asynq.RedisClientOpt{Addr: cfg.RedisURL},
+		&asynq.SchedulerOpts{},
+	)
+
+	// Schedule task:dispatch_crawling to run every 1 hour (cron: "0 * * * *")
+	dispatchTask, err := queue.NewDispatchCrawlingTask()
+	if err == nil {
+		if entryID, err := scheduler.Register("0 * * * *", dispatchTask); err != nil {
+			log.Printf("Warning: Could not register periodic crawling dispatch cron: %v", err)
+		} else {
+			log.Printf("Registered periodic crawling dispatch cron with entry ID: %s", entryID)
+		}
+	}
+
+	go func() {
+		if err := scheduler.Run(); err != nil {
+			log.Printf("Scheduler error: %v", err)
+		}
+	}()
+
+	// 4. Asynq Server Setup
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: cfg.RedisURL},
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{
+				queue.QueueDispatchCrawling:   10,
 				queue.QueueRawIngestion:       10,
 				queue.QueueLLMExtraction:      5,
 				queue.QueueProposalGeneration: 3,
@@ -48,7 +76,8 @@ func main() {
 
 	mux := asynq.NewServeMux()
 
-	// Register Asynq task handler for LLM extraction
+	// Register Asynq task handlers
+	mux.HandleFunc(queue.TypeDispatchCrawling, dispatcherWorker.HandleDispatchCrawlingTask)
 	mux.HandleFunc(queue.TypeLLMExtraction, extractionWorker.ProcessExtractionTask)
 
 	log.Println("Asynq Worker server listening for queue jobs...")

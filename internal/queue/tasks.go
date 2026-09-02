@@ -8,10 +8,12 @@ import (
 )
 
 const (
+	TypeDispatchCrawling   = "task:dispatch_crawling"
 	TypeRawIngestion       = "task:raw_ingestion"
 	TypeLLMExtraction      = "task:llm_extraction"
 	TypeProposalGeneration = "task:proposal_generation"
 
+	QueueDispatchCrawling   = "dispatch-crawling-queue"
 	QueueRawIngestion       = "raw-ingestion-queue"
 	QueueLLMExtraction      = "llm-extraction-queue"
 	QueueProposalGeneration = "proposal-generation-queue"
@@ -27,6 +29,10 @@ type LLMExtractionPayload struct {
 	RawText         string `json:"raw_text"`
 	MarkdownContent string `json:"markdown_content"`
 	ContentHash     string `json:"content_hash"`
+}
+
+func NewDispatchCrawlingTask() (*asynq.Task, error) {
+	return asynq.NewTask(TypeDispatchCrawling, []byte("{}"), asynq.Queue(QueueDispatchCrawling), asynq.MaxRetry(3)), nil
 }
 
 func NewLLMExtractionTask(payload LLMExtractionPayload) (*asynq.Task, error) {

@@ -12,17 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"sovera-core-api/internal/queue"
+	"sovera-core-api/internal/repository"
 )
 
 type WebhookHandler struct {
 	dbPool      *pgxpool.Pool
 	asynqClient *asynq.Client
+	crawlerRepo *repository.CrawlerRepository
 }
 
 func NewWebhookHandler(dbPool *pgxpool.Pool, asynqClient *asynq.Client) *WebhookHandler {
+	var crawlerRepo *repository.CrawlerRepository
+	if dbPool != nil {
+		crawlerRepo = repository.NewCrawlerRepository(dbPool)
+	}
 	return &WebhookHandler{
 		dbPool:      dbPool,
 		asynqClient: asynqClient,
+		crawlerRepo: crawlerRepo,
 	}
 }
 
@@ -34,6 +41,7 @@ type CrawlerPayload struct {
 	PublishedDate   string `json:"published_date"`
 	RawText         string `json:"raw_text"`
 	MarkdownContent string `json:"markdown_content"`
+	ExecutionTimeMs int    `json:"execution_time_ms,omitempty"`
 }
 
 func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
@@ -63,6 +71,17 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 	contentHash := hex.EncodeToString(hash[:])
 
 	jobID := "job_ingest_" + uuid.New().String()[:8]
+
+	// Update crawling_logs if task_id exists
+	if payload.TaskID != "" && h.crawlerRepo != nil {
+		execTime := payload.ExecutionTimeMs
+		if execTime == 0 {
+			execTime = 1200
+		}
+		if err := h.crawlerRepo.UpdateLogStatus(c.Context(), payload.TaskID, "COMPLETED", &execTime, &contentHash, nil); err != nil {
+			log.Printf("Notice: Could not update crawling_logs for TaskID %s: %v", payload.TaskID, err)
+		}
+	}
 
 	// Enqueue Asynq task into Redis
 	taskPayload := queue.LLMExtractionPayload{
