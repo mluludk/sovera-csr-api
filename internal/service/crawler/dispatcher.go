@@ -34,6 +34,7 @@ func (d *Dispatcher) DispatchTask(ctx context.Context, target model.CrawlingTarg
 
 	payload := model.ScrapeTaskPayload{
 		TaskID:       taskID,
+		TargetID:     target.ID,
 		ClientOrigin: "sovera_b2b_engine",
 		SourceType:   target.SourceType,
 		TargetURL:    target.TargetURL,
@@ -55,8 +56,12 @@ func (d *Dispatcher) DispatchTask(ctx context.Context, target model.CrawlingTarg
 		return 0, fmt.Errorf("failed to create http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if d.cfg.WebhookSecretKey != "" {
-		req.Header.Set("Authorization", "Bearer "+d.cfg.WebhookSecretKey)
+	apiKey := d.cfg.ScraperAPIKey
+	if apiKey == "" {
+		apiKey = d.cfg.WebhookSecretKey
+	}
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
 	resp, err := d.httpClient.Do(req)

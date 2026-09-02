@@ -42,6 +42,7 @@ type ScrapeTaskConfig struct {
 
 type ScrapeTaskPayload struct {
 	TaskID       string            `json:"task_id"`
+	TargetID     string            `json:"target_id,omitempty"`
 	ClientOrigin string            `json:"client_origin"`
 	SourceType   string            `json:"source_type"`
 	TargetURL    string            `json:"target_url"`

@@ -16,6 +16,7 @@ type Config struct {
 	JWTSecret         string
 	AIAPIKey          string
 	ScraperServiceURL string
+	ScraperAPIKey     string
 	WebhookURL        string
 }
 
@@ -34,6 +35,7 @@ func LoadConfig() *Config {
 		JWTSecret:         getEnv("JWT_SECRET", "super_secret_jwt_key_enterprise"),
 		AIAPIKey:          getEnv("AI_API_KEY", ""),
 		ScraperServiceURL: getEnv("SCRAPER_SERVICE_URL", "https://api-scraper.megasolusindo.com/api/v1/scrape-tasks"),
+		ScraperAPIKey:     getEnv("SCRAPER_API_KEY", "change-me"),
 		WebhookURL:        getEnv("WEBHOOK_URL", "http://localhost:4000/api/v1/webhooks/crawler"),
 	}
 }

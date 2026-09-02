@@ -50,6 +50,7 @@ services:
       - JWT_SECRET=super_secret_jwt_key_enterprise
       - AI_API_KEY=${AI_API_KEY}
       - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-https://api-scraper.megasolusindo.com/api/v1/scrape-tasks}
+      - SCRAPER_API_KEY=${SCRAPER_API_KEY:-change-me}
       - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
     depends_on:
       postgres:
@@ -71,6 +72,7 @@ services:
       - JWT_SECRET=super_secret_jwt_key_enterprise
       - AI_API_KEY=${AI_API_KEY}
       - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-https://api-scraper.megasolusindo.com/api/v1/scrape-tasks}
+      - SCRAPER_API_KEY=${SCRAPER_API_KEY:-change-me}
       - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
     depends_on:
       postgres:
