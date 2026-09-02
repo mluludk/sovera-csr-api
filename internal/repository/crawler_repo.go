@@ -57,7 +57,7 @@ func (r *CrawlerRepository) UpdateTargetNextRun(ctx context.Context, targetID st
 	query := `
 		UPDATE crawling_targets
 		SET last_scraped_at = NOW(),
-		    next_run_at = NOW() + ($2 || ' hours')::INTERVAL,
+		    next_run_at = NOW() + MAKE_INTERVAL(hours => $2),
 		    updated_at = NOW()
 		WHERE id = $1;
 	`
