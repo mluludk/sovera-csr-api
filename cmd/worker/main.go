@@ -44,9 +44,19 @@ func main() {
 		&asynq.SchedulerOpts{},
 	)
 
-	// Schedule task:dispatch_crawling to run every 1 hour (cron: "0 * * * *")
+	// Schedule task:dispatch_crawling
 	dispatchTask, err := queue.NewDispatchCrawlingTask()
 	if err == nil {
+		// Instant startup sweep: Enqueue 1x dispatch task immediately on worker launch/restart
+		startupClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisURL})
+		if info, enqueueErr := startupClient.Enqueue(dispatchTask); enqueueErr != nil {
+			log.Printf("Notice: Could not enqueue instant startup crawling task: %v", enqueueErr)
+		} else {
+			log.Printf("Enqueued instant startup crawling target check to Redis queue (TaskID: %s)", info.ID)
+		}
+		startupClient.Close()
+
+		// Register periodic cron to run every 1 hour (cron: "0 * * * *")
 		if entryID, err := scheduler.Register("0 * * * *", dispatchTask); err != nil {
 			log.Printf("Warning: Could not register periodic crawling dispatch cron: %v", err)
 		} else {
