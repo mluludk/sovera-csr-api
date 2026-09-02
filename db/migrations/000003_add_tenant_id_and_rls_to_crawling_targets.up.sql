@@ -1,4 +1,5 @@
--- Migration: Add tenant_id (org_id) and RLS policy to crawling_targets
+-- Migration: Add tenant_id column and RLS policy to crawling_targets
+-- NOTE: Column renamed to org_id for naming consistency in migration 000005
 
 -- 1. Add tenant_id column (NULL = Public/Global target, UUID = Tenant-specific private target)
 ALTER TABLE crawling_targets 
