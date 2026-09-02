@@ -58,6 +58,7 @@ func main() {
 	signalRepo := repository.NewSignalRepository(dbPool)
 	programRepo := repository.NewProgramRepository(dbPool)
 	dealRepo := repository.NewDealRepository(dbPool)
+	userRepo := repository.NewUserRepository(dbPool)
 
 	// 5. Create Fiber Web Application
 	app := fiber.New(fiber.Config{
@@ -85,34 +86,47 @@ func main() {
 	signalHandler := handler.NewSignalHandler(signalRepo)
 	programHandler := handler.NewProgramHandler(programRepo, geminiService)
 	dealHandler := handler.NewDealHandler(dealRepo, programRepo, signalRepo, geminiService, docExporter)
+	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret)
 
-	// Root & Health check routes
+	// Root & Health check routes (public)
 	app.Get("/health", healthHandler.HealthCheck)
 
 	apiV1 := app.Group("/api/v1")
 	apiV1.Get("/health", healthHandler.HealthCheck)
 
-	// Webhook Ingestion Endpoint (Protected by HMAC Verification)
+	// ─── Auth Routes (PUBLIC — no JWT required) ───────────────────────────────
+	auth := apiV1.Group("/auth")
+	auth.Post("/register", authHandler.Register)
+	auth.Post("/login", authHandler.Login)
+	auth.Get("/me", middleware.AuthenticateJWT(cfg.JWTSecret), authHandler.Me)
+
+	// ─── Webhook Ingestion (Protected by HMAC Verification) ──────────────────
 	apiV1.Post(
 		"/webhooks/crawler",
 		middleware.VerifyHMAC(cfg.WebhookSecretKey),
 		webhookHandler.HandleCrawlerWebhook,
 	)
 
-	// Corporate Intelligence Feeds API
-	apiV1.Get("/signals", signalHandler.ListSignals)
-	apiV1.Get("/signals/:id/match-programs", signalHandler.MatchPrograms)
+	// ─── JWT-Protected Routes ─────────────────────────────────────────────────
+	jwtGuard := middleware.AuthenticateJWT(cfg.JWTSecret)
 
-	// Institution Programs API (RLS Enforced)
-	apiV1.Get("/programs", programHandler.ListPrograms)
-	apiV1.Post("/programs", programHandler.CreateProgram)
+	// Corporate Intelligence Feeds — semua role
+	apiV1.Get("/signals", jwtGuard, signalHandler.ListSignals)
+	apiV1.Get("/signals/:id/match-programs", jwtGuard, signalHandler.MatchPrograms)
 
-	// Deal Pipeline & Proposal Studio API (RLS Enforced)
-	apiV1.Get("/deals", dealHandler.ListDeals)
-	apiV1.Post("/deals", dealHandler.CreateDeal)
-	apiV1.Patch("/deals/:id/stage", dealHandler.UpdateStage)
-	apiV1.Post("/deals/:id/generate-pitch", dealHandler.GeneratePitch)
-	apiV1.Post("/deals/:id/export", dealHandler.ExportProposal)
+	// Institution Programs — GET: semua role | POST: ORG_ADMIN & DIRECTOR only
+	apiV1.Get("/programs", jwtGuard, programHandler.ListPrograms)
+	apiV1.Post("/programs", jwtGuard,
+		middleware.RequireRole("ORG_ADMIN", "DIRECTOR"),
+		programHandler.CreateProgram,
+	)
+
+	// Deal Pipeline & Proposal Studio — semua role (ownership filter via org_id RLS)
+	apiV1.Get("/deals", jwtGuard, dealHandler.ListDeals)
+	apiV1.Post("/deals", jwtGuard, dealHandler.CreateDeal)
+	apiV1.Patch("/deals/:id/stage", jwtGuard, dealHandler.UpdateStage)
+	apiV1.Post("/deals/:id/generate-pitch", jwtGuard, dealHandler.GeneratePitch)
+	apiV1.Post("/deals/:id/export", jwtGuard, dealHandler.ExportProposal)
 
 	// 8. Graceful Shutdown Handler
 	shutdownChan := make(chan os.Signal, 1)
