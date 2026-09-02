@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -22,11 +23,13 @@ func NewProgramHandler(programRepo *repository.ProgramRepository, geminiService 
 }
 
 type CreateProgramPayload struct {
-	Title               string `json:"title"`
-	Description         string `json:"description"`
-	AsnafCategory       string `json:"asnaf_category"`
-	ESGPillar           string `json:"esg_pillar"`
-	TargetBeneficiaries string `json:"target_beneficiaries"`
+	Title               string   `json:"title"`
+	Description         string   `json:"description"`
+	PrimaryCluster      string   `json:"primary_cluster"`
+	TargetSDGs          []string `json:"target_sdgs"`
+	AsnafCategory       string   `json:"asnaf_category"`
+	ESGPillar           string   `json:"esg_pillar"`
+	TargetBeneficiaries string   `json:"target_beneficiaries"`
 }
 
 func (h *ProgramHandler) ListPrograms(c *fiber.Ctx) error {
@@ -72,8 +75,15 @@ func (h *ProgramHandler) CreateProgram(c *fiber.Ctx) error {
 		})
 	}
 
+	if payload.PrimaryCluster == "" {
+		payload.PrimaryCluster = "COMMUNITY_DEVELOPMENT"
+	}
+	if payload.ESGPillar == "" {
+		payload.ESGPillar = "SOCIAL"
+	}
+
 	// Auto-generate vector embedding (1536 dim) for program text
-	textToEmbed := fmt.Sprintf("%s %s %s %s", payload.Title, payload.Description, payload.AsnafCategory, payload.ESGPillar)
+	textToEmbed := fmt.Sprintf("%s %s %s %s %s %s", payload.Title, payload.Description, payload.PrimaryCluster, strings.Join(payload.TargetSDGs, " "), payload.AsnafCategory, payload.ESGPillar)
 	embedding, err := h.geminiService.GenerateEmbedding(c.Context(), textToEmbed)
 	if err != nil {
 		embedding = make([]float32, 1536)
@@ -81,7 +91,7 @@ func (h *ProgramHandler) CreateProgram(c *fiber.Ctx) error {
 
 	prog, err := h.programRepo.CreateProgram(
 		c.Context(), orgID, payload.Title, payload.Description,
-		payload.AsnafCategory, payload.ESGPillar, payload.TargetBeneficiaries, embedding,
+		payload.PrimaryCluster, payload.TargetSDGs, payload.AsnafCategory, payload.ESGPillar, payload.TargetBeneficiaries, embedding,
 	)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -12,25 +12,53 @@ type PitchStrategyResult struct {
 	ProposalMarkdown string   `json:"proposal_markdown"`
 }
 
-// GeneratePitchStrategy orchestrates Gemini LLM to craft executive outreach outputs.
-func (s *GeminiService) GeneratePitchStrategy(ctx context.Context, dealID, companyName, CSRSummary, programTitle, programDesc, tone, customNotes string) (*PitchStrategyResult, error) {
-	// Fallback/Mock synthesis logic for instant strategy generation
-	icebreaker := fmt.Sprintf(
-		"Yth. Pimpinan TJSL & CSR %s,\n\nMenyikapi inisiatif luar biasa korporasi dalam fokus keberlanjutan (%s), kami dari lembaga bermaksud mengajukan kolaborasi strategis melalui %s.\n\n%s\n\nBesar harapan kami untuk dapat menjadwalkan sesi audiensi singkat.",
-		companyName, CSRSummary, programTitle, customNotes,
-	)
+// GeneratePitchStrategy orchestrates Gemini LLM to craft executive outreach outputs adapted to orgType.
+func (s *GeminiService) GeneratePitchStrategy(ctx context.Context, dealID, companyName, CSRSummary, programTitle, programDesc, orgType, customNotes string) (*PitchStrategyResult, error) {
+	var icebreaker string
+	var pitchOutline []string
 
-	pitchOutline := []string{
-		"Slide 1: Urgensi Kesenjangan & Tantangan Akses Sektor Target",
-		fmt.Sprintf("Slide 2: Solusi Kemitraan Strategis via %s", programTitle),
-		"Slide 3: Rencana Target Dampak (SDGs & Indikator Penerima Manfaat)",
-		"Slide 4: Skema Pengelolaan Anggaran & Transparansi Laporan",
-		"Slide 5: Profil Lembaga & Rekam Jejak Kemitraan Korporasi",
+	switch orgType {
+	case "DISASTER_RELIEF", "HUMANITARIAN_NGO":
+		icebreaker = fmt.Sprintf(
+			"Yth. Direksi CSR & Response Team %s,\n\nMenanggapi urgensi respons kemanusiaan dan keberlanjutan (%s), kami mengajukan kemitraan aksi cepat melalui program %s.\n\nTarget utama: Kecepatan evakuasi/distribusi logistik, transparansi data penerima manfaat langsung, dan pelaporan lapangan real-time.\n%s",
+			companyName, CSRSummary, programTitle, customNotes,
+		)
+		pitchOutline = []string{
+			"Slide 1: Urgensi Krisis & Peta Wilayah Intervensi Kemanusiaan",
+			fmt.Sprintf("Slide 2: Aksi Respons Cepat via Program %s", programTitle),
+			"Slide 3: Akuntabilitas Logistik & Transparansi Penerima Manfaat",
+			"Slide 4: Skema Alokasi Anggaran Respon & Dokumentasi Lapangan",
+			"Slide 5: Profil Lembaga Kemanusiaan & Rekam Jejak Audit",
+		}
+	case "ENVIRONMENT_CONSERVATION", "HEALTH_EDUCATION":
+		icebreaker = fmt.Sprintf(
+			"Yth. Tim Sustainability & ESG %s,\n\nMenyambung target indikator keberlanjutan emiten (%s), kami mengusulkan program kemitraan berbasis dampak terukur melalui %s (SDGs Alignment & SROI Index).\n%s",
+			companyName, CSRSummary, programTitle, customNotes,
+		)
+		pitchOutline = []string{
+			"Slide 1: Alignment Matriks POJK 51 / GRI & Target ESG Emiten",
+			fmt.Sprintf("Slide 2: Model Intervensi Dampak Berkelanjutan via %s", programTitle),
+			"Slide 3: Indikator Metrik Dampak Sosial (SROI & SDGs Target)",
+			"Slide 4: Rencana Anggaran Biaya (RAB) & Efisiensi Pengelolaan",
+			"Slide 5: Tata Kelola Organisasi & Pengawasan Independen",
+		}
+	default: // ZAKAT_WAQF_INSTITUTION / Standard
+		icebreaker = fmt.Sprintf(
+			"Salam hangat Bapak/Ibu Pimpinan TJSL & Zakat Korporasi %s,\n\nMenyikapi inisiatif luar biasa korporasi dalam fokus keberlanjutan (%s), kami dari lembaga pengelola resmi bermaksud mengajukan kolaborasi penyerapan Zakat Perusahaan / Infaq Korporasi melalui %s.\n\n%s",
+			companyName, CSRSummary, programTitle, customNotes,
+		)
+		pitchOutline = []string{
+			"Slide 1: Keselarasan Nilai Syariah & Matriks ESG Korporasi",
+			fmt.Sprintf("Slide 2: Solusi Penyaluran 8 Asnaf via Program %s", programTitle),
+			"Slide 3: Target Dampak Penerima Manfaat & Pengentasan Kemiskinan",
+			"Slide 4: Transparansi Akad Syariah, RAB & Laporan Akuntabilitas",
+			"Slide 5: Legalitas Amil Resmi (Kepmenag) & Rekam Jejak Opini WTP",
+		}
 	}
 
 	proposalMarkdown := fmt.Sprintf(
-		"# PROPOSAL KEMITRAAN STRATEGIS\n\n## Target Korporasi: %s\n## Program Lembaga: %s\n\n### 1. Ringkasan Eksekutif\n%s\n\n### 2. Deskripsi Program\n%s\n\n### 3. Catatan Khusus & Penyesuaian Strategis\n%s",
-		companyName, programTitle, CSRSummary, programDesc, customNotes,
+		"# PROPOSAL KEMITRAAN STRATEGIS MULTI-SEKTOR\n\n## Target Korporasi: %s\n## Tipe Lembaga: %s\n## Program Utama: %s\n\n### 1. Ringkasan Eksekutif\n%s\n\n### 2. Deskripsi Program & Metrik Dampak\n%s\n\n### 3. Catatan Khusus & Penyesuaian Strategis\n%s",
+		companyName, orgType, programTitle, CSRSummary, programDesc, customNotes,
 	)
 
 	return &PitchStrategyResult{

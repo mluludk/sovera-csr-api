@@ -11,16 +11,18 @@ import (
 )
 
 type InstitutionProgram struct {
-	ID                   string    `json:"id"`
-	OrgID                string    `json:"org_id"`
-	Title                string    `json:"title"`
-	Description          string    `json:"description"`
-	AsnafCategory        string    `json:"asnaf_category"`
-	ESGPillar            string    `json:"esg_pillar"`
-	TargetBeneficiaries  string    `json:"target_beneficiaries"`
-	EmbeddingGenerated   bool      `json:"embedding_generated"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                  string    `json:"id"`
+	OrgID               string    `json:"org_id"`
+	Title               string    `json:"title"`
+	Description         string    `json:"description"`
+	PrimaryCluster      string    `json:"primary_cluster"`
+	TargetSDGs          []string  `json:"target_sdgs"`
+	AsnafCategory       string    `json:"asnaf_category,omitempty"`
+	ESGPillar           string    `json:"esg_pillar"`
+	TargetBeneficiaries string    `json:"target_beneficiaries"`
+	EmbeddingGenerated  bool      `json:"embedding_generated"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type ProgramRepository struct {
@@ -32,13 +34,22 @@ func NewProgramRepository(dbPool *pgxpool.Pool) *ProgramRepository {
 }
 
 // CreateProgram registers a new institution program inside an RLS-enforced transaction.
-func (r *ProgramRepository) CreateProgram(ctx context.Context, orgID, title, description, asnafCategory, esgPillar, beneficiaries string, embedding []float32) (*InstitutionProgram, error) {
+func (r *ProgramRepository) CreateProgram(ctx context.Context, orgID, title, description, primaryCluster string, sdgs []string, asnafCategory, esgPillar, beneficiaries string, embedding []float32) (*InstitutionProgram, error) {
+	if primaryCluster == "" {
+		primaryCluster = "COMMUNITY_DEVELOPMENT"
+	}
+	if esgPillar == "" {
+		esgPillar = "SOCIAL"
+	}
+
 	if r.dbPool == nil {
 		return &InstitutionProgram{
 			ID:                  "prog_mock_991823a",
 			OrgID:               orgID,
 			Title:               title,
 			Description:         description,
+			PrimaryCluster:      primaryCluster,
+			TargetSDGs:          sdgs,
 			AsnafCategory:       asnafCategory,
 			ESGPillar:           esgPillar,
 			TargetBeneficiaries: beneficiaries,
@@ -54,13 +65,13 @@ func (r *ProgramRepository) CreateProgram(ctx context.Context, orgID, title, des
 	err := WithTenantContext(ctx, r.dbPool, orgID, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO institution_programs (
-				org_id, title, description, asnaf_category, esg_pillar, target_beneficiaries, program_embedding
-			) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id::text, org_id::text, title, description, COALESCE(asnaf_category, ''), COALESCE(esg_pillar, ''), COALESCE(target_beneficiaries, ''), created_at, updated_at;
+				org_id, title, description, primary_cluster, target_sdgs, asnaf_category, esg_pillar, target_beneficiaries, program_embedding
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			RETURNING id::text, org_id::text, title, description, COALESCE(primary_cluster, 'COMMUNITY_DEVELOPMENT'), COALESCE(target_sdgs, '{}'), COALESCE(asnaf_category, ''), COALESCE(esg_pillar, 'SOCIAL'), COALESCE(target_beneficiaries, ''), created_at, updated_at;
 		`
-		return tx.QueryRow(ctx, query, orgID, title, description, asnafCategory, esgPillar, beneficiaries, vec).Scan(
+		return tx.QueryRow(ctx, query, orgID, title, description, primaryCluster, sdgs, asnafCategory, esgPillar, beneficiaries, vec).Scan(
 			&prog.ID, &prog.OrgID, &prog.Title, &prog.Description,
-			&prog.AsnafCategory, &prog.ESGPillar, &prog.TargetBeneficiaries,
+			&prog.PrimaryCluster, &prog.TargetSDGs, &prog.AsnafCategory, &prog.ESGPillar, &prog.TargetBeneficiaries,
 			&prog.CreatedAt, &prog.UpdatedAt,
 		)
 	})
@@ -84,7 +95,8 @@ func (r *ProgramRepository) ListPrograms(ctx context.Context, orgID string) ([]I
 		query := `
 			SELECT 
 				id::text, org_id::text, title, description, 
-				COALESCE(asnaf_category, ''), COALESCE(esg_pillar, ''), COALESCE(target_beneficiaries, ''),
+				COALESCE(primary_cluster, 'COMMUNITY_DEVELOPMENT'), COALESCE(target_sdgs, '{}'),
+				COALESCE(asnaf_category, ''), COALESCE(esg_pillar, 'SOCIAL'), COALESCE(target_beneficiaries, ''),
 				created_at, updated_at
 			FROM institution_programs
 			ORDER BY created_at DESC;
@@ -99,6 +111,7 @@ func (r *ProgramRepository) ListPrograms(ctx context.Context, orgID string) ([]I
 			var p InstitutionProgram
 			err := rows.Scan(
 				&p.ID, &p.OrgID, &p.Title, &p.Description,
+				&p.PrimaryCluster, &p.TargetSDGs,
 				&p.AsnafCategory, &p.ESGPillar, &p.TargetBeneficiaries,
 				&p.CreatedAt, &p.UpdatedAt,
 			)
@@ -130,13 +143,15 @@ func (r *ProgramRepository) GetProgramByID(ctx context.Context, orgID, programID
 		query := `
 			SELECT 
 				id::text, org_id::text, title, description, 
-				COALESCE(asnaf_category, ''), COALESCE(esg_pillar, ''), COALESCE(target_beneficiaries, ''),
+				COALESCE(primary_cluster, 'COMMUNITY_DEVELOPMENT'), COALESCE(target_sdgs, '{}'),
+				COALESCE(asnaf_category, ''), COALESCE(esg_pillar, 'SOCIAL'), COALESCE(target_beneficiaries, ''),
 				created_at, updated_at
 			FROM institution_programs
 			WHERE id = $1::uuid;
 		`
 		return tx.QueryRow(ctx, query, programID).Scan(
 			&p.ID, &p.OrgID, &p.Title, &p.Description,
+			&p.PrimaryCluster, &p.TargetSDGs,
 			&p.AsnafCategory, &p.ESGPillar, &p.TargetBeneficiaries,
 			&p.CreatedAt, &p.UpdatedAt,
 		)
@@ -158,8 +173,10 @@ func (r *ProgramRepository) mockPrograms(orgID string) []InstitutionProgram {
 			OrgID:               orgID,
 			Title:               "Program Beasiswa Generasi Digital 3T",
 			Description:         "Program penyediaan laptop, renovasi lab komputer, dan beasiswa pendidikan digital untuk siswa kurang mampu di daerah 3T.",
+			PrimaryCluster:      "Education & Literacy",
+			TargetSDGs:          []string{"SDG 4: Quality Education", "SDG 9: Industry & Innovation"},
 			AsnafCategory:       "Fisabilillah / Ibnu Sabil",
-			ESGPillar:           "Pendidikan (SDG 4)",
+			ESGPillar:           "SOCIAL",
 			TargetBeneficiaries: "5.000 Siswa Madrasah",
 			EmbeddingGenerated:  true,
 			CreatedAt:           time.Now(),
@@ -168,10 +185,12 @@ func (r *ProgramRepository) mockPrograms(orgID string) []InstitutionProgram {
 		{
 			ID:                  "prog_44c55d66-77e8-99f0-11a2-33b44c55d66e",
 			OrgID:               orgID,
-			Title:               "Pemberdayaan SMK Vokasi Syariah",
-			Description:         "Pelatihan keterampilan teknis vokasi dan sertifikasi industri untuk lulusan SMK di wilayah pedesaan.",
+			Title:               "Pemberdayaan SMK Vokasi Syariah & Tanggap Bencana",
+			Description:         "Pelatihan keterampilan teknis vokasi, respon cepat kebencanaan, dan sertifikasi industri untuk lulusan SMK di wilayah pedesaan.",
+			PrimaryCluster:      "Disaster & Emergency",
+			TargetSDGs:          []string{"SDG 1: No Poverty", "SDG 11: Sustainable Communities"},
 			AsnafCategory:       "Fakir / Miskin",
-			ESGPillar:           "Ekonomi & Pekerjaan Layak (SDG 8)",
+			ESGPillar:           "SOCIAL",
 			TargetBeneficiaries: "1.200 Lulusan SMK",
 			EmbeddingGenerated:  true,
 			CreatedAt:           time.Now(),
