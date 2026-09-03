@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"log"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
