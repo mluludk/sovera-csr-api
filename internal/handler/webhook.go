@@ -33,20 +33,36 @@ func NewWebhookHandler(dbPool *pgxpool.Pool, asynqClient *asynq.Client) *Webhook
 	}
 }
 
-// CrawlerPayload represents the webhook callback payload from the web scraper service.
-type CrawlerPayload struct {
-	TaskID          string `json:"task_id"`
-	TargetID        string `json:"target_id,omitempty"`
-	HTTPStatusCode  int    `json:"http_status_code,omitempty"` // e.g. 200, 404, 403, 500
-	Status          string `json:"status,omitempty"`           // COMPLETED, FAILED
-	ErrorMessage    string `json:"error_message,omitempty"`
-	SourceType      string `json:"source_type"`
-	SourceURL       string `json:"source_url"`
-	AuthorOrAccount string `json:"author_or_account,omitempty"`
-	PublishedDate   string `json:"published_date,omitempty"`
+type CrawlerPayloadData struct {
 	RawText         string `json:"raw_text,omitempty"`
 	MarkdownContent string `json:"markdown_content,omitempty"`
-	ExecutionTimeMs int    `json:"execution_time_ms,omitempty"`
+	Text            string `json:"text,omitempty"`
+	Content         string `json:"content,omitempty"`
+	RawData         struct {
+		RawText         string `json:"raw_text,omitempty"`
+		MarkdownContent string `json:"markdown_content,omitempty"`
+		Text            string `json:"text,omitempty"`
+		Content         string `json:"content,omitempty"`
+	} `json:"raw_data,omitempty"`
+}
+
+// CrawlerPayload represents the webhook callback payload from the web scraper service.
+type CrawlerPayload struct {
+	TaskID          string              `json:"task_id"`
+	JobID           string              `json:"job_id,omitempty"`
+	TargetID        string              `json:"target_id,omitempty"`
+	HTTPStatusCode  int                 `json:"http_status_code,omitempty"` // e.g. 200, 404, 403, 500
+	Status          string              `json:"status,omitempty"`           // COMPLETED, FAILED
+	ErrorMessage    string              `json:"error_message,omitempty"`
+	SourceType      string              `json:"source_type"`
+	TargetType      string              `json:"target_type,omitempty"`
+	SourceURL       string              `json:"source_url"`
+	AuthorOrAccount string              `json:"author_or_account,omitempty"`
+	PublishedDate   string              `json:"published_date,omitempty"`
+	RawText         string              `json:"raw_text,omitempty"`
+	MarkdownContent string              `json:"markdown_content,omitempty"`
+	ExecutionTimeMs int                 `json:"execution_time_ms,omitempty"`
+	Data            *CrawlerPayloadData `json:"data,omitempty"`
 }
 
 func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
@@ -57,6 +73,39 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 			"error":   "INVALID_PAYLOAD",
 			"message": "Failed to parse JSON body",
 		})
+	}
+
+	// Fallback TaskID from JobID or TargetType from SourceType
+	if payload.TaskID == "" && payload.JobID != "" {
+		payload.TaskID = payload.JobID
+	}
+	if payload.SourceType == "" && payload.TargetType != "" {
+		payload.SourceType = payload.TargetType
+	}
+
+	// Extract raw_text / markdown_content from nested Data struct if top-level is empty
+	if payload.RawText == "" && payload.Data != nil {
+		if payload.Data.RawText != "" {
+			payload.RawText = payload.Data.RawText
+		} else if payload.Data.RawData.RawText != "" {
+			payload.RawText = payload.Data.RawData.RawText
+		} else if payload.Data.Text != "" {
+			payload.RawText = payload.Data.Text
+		} else if payload.Data.Content != "" {
+			payload.RawText = payload.Data.Content
+		} else if payload.Data.RawData.Text != "" {
+			payload.RawText = payload.Data.RawData.Text
+		} else if payload.Data.RawData.Content != "" {
+			payload.RawText = payload.Data.RawData.Content
+		}
+	}
+
+	if payload.MarkdownContent == "" && payload.Data != nil {
+		if payload.Data.MarkdownContent != "" {
+			payload.MarkdownContent = payload.Data.MarkdownContent
+		} else if payload.Data.RawData.MarkdownContent != "" {
+			payload.MarkdownContent = payload.Data.RawData.MarkdownContent
+		}
 	}
 
 	httpStatusCode := payload.HTTPStatusCode
