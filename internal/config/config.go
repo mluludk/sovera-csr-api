@@ -36,7 +36,7 @@ func LoadConfig() *Config {
 		AIAPIKey:          getEnv("AI_API_KEY", ""),
 		ScraperServiceURL: getEnv("SCRAPER_SERVICE_URL", "https://api-scraper.megasolusindo.com/api/v1/scrape-tasks"),
 		ScraperAPIKey:     getEnv("SCRAPER_API_KEY", "change-me"),
-		WebhookURL:        getEnv("WEBHOOK_URL", "http://localhost:4000/api/v1/webhooks/crawler"),
+		WebhookURL:        getEnv("WEBHOOK_URL", "http://host.docker.internal:4000/api/v1/webhooks/crawler"),
 	}
 }
 
