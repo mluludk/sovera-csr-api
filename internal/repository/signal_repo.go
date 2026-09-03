@@ -46,7 +46,7 @@ func NewSignalRepository(dbPool *pgxpool.Pool) *SignalRepository {
 }
 
 // SaveSignal inserts or updates an extracted corporate signal into public_corporate_signals.
-func (r *SignalRepository) SaveSignal(ctx context.Context, signal *ai.ExtractedSignal, sourceType, sourceURL, contentHash string, embedding []float32) (string, error) {
+func (r *SignalRepository) SaveSignal(ctx context.Context, signal *ai.ExtractedSignal, companyID *string, sourceType, sourceURL, contentHash string, embedding []float32) (string, error) {
 	if r.dbPool == nil {
 		return "sig_mock_12345", nil
 	}
@@ -55,11 +55,13 @@ func (r *SignalRepository) SaveSignal(ctx context.Context, signal *ai.ExtractedS
 
 	query := `
 		INSERT INTO public_corporate_signals (
-			company_name, industry_sector, source_type, source_url, summary, 
+			company_id, company_name, industry_sector, source_type, source_url, summary, 
 			extracted_pillar, target_regions, estimated_budget_signal, trigger_event, 
 			intent_score, content_hash, signal_embedding, published_date
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_DATE)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_DATE)
 		ON CONFLICT (content_hash) DO UPDATE SET 
+			company_id = EXCLUDED.company_id,
+			company_name = EXCLUDED.company_name,
 			summary = EXCLUDED.summary,
 			intent_score = EXCLUDED.intent_score
 		RETURNING id::text;
@@ -68,7 +70,7 @@ func (r *SignalRepository) SaveSignal(ctx context.Context, signal *ai.ExtractedS
 	var insertedID string
 	err := r.dbPool.QueryRow(
 		ctx, query,
-		signal.CompanyName, signal.IndustrySector, sourceType, sourceURL, signal.Summary,
+		companyID, signal.CompanyName, signal.IndustrySector, sourceType, sourceURL, signal.Summary,
 		signal.CSRPillarFocus, signal.TargetRegions, signal.EstimatedBudgetSignal, signal.TriggerEvent,
 		signal.IntentScore, contentHash, vec,
 	).Scan(&insertedID)

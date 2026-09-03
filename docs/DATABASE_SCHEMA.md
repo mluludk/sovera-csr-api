@@ -8,21 +8,22 @@
 
 ## 1. Architectural Overview & Security Model
 
-PostgreSQL dirancang dengan pemisahan tegas antara **Data Intelijen Publik (Shared Data)** dan **Data Lembaga Privat (Tenant-Isolated Data)**:
+PostgreSQL dirancang dengan pemisahan tegas antara **Data Intelijen Publik & Korporasi (Shared Data)** dan **Data Lembaga Privat (Tenant-Isolated Data)**:
 
-* **Tabel Publik / Bersama (`public_corporate_signals`):** Berisi data hasil crawling bursa, rilis berita, dan laporan keberlanjutan yang dapat dibaca oleh seluruh tenant terdaftar.
+* **Tabel Publik & Intelijen Korporasi (Shared Market Data):** Berisi data induk perusahaan (`companies`), profil CSR (`company_csr_profiles`), program CSR (`company_csr_programs`), profil ESG (`company_esg_profiles`), taksonomi fokus (`csr_focuses`, `esg_material_topics`), serta sinyal CSR (`public_corporate_signals`) yang dapat dibaca oleh seluruh tenant terdaftar.
 * **Tabel Privat (`institution_programs`, `deal_pipelines`, `users`):** Diberikan proteksi `ENABLE ROW LEVEL SECURITY` dan `FORCE ROW LEVEL SECURITY`. Akses data diisolasi secara otomatis berdasarkan parameter transaksi `app.current_org_id`.
 
 ---
 
-## 2. Complete SQL DDL & Migration Script
+## 2. Complete SQL DDL
 
 ```sql
--- 1. SETUP EXTENSIONS
+-- ============================================================
+-- 1. SETUP EXTENSIONS & ENUMS
+-- ============================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
--- 2. ENUM TYPES
 DO $$ BEGIN
     CREATE TYPE deal_stage_enum AS ENUM (
         'DISCOVERED', 
@@ -47,7 +48,9 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- 3. TENANT & AUTH TABLES (PUBLIC READ / SYSTEM MANAGED)
+-- ============================================================
+-- 2. TENANT & AUTH TABLES (SYSTEM MANAGED)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -67,9 +70,140 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. SHARED MARKET DATA (NO RLS - SHARED ACROSS TENANTS)
+-- ============================================================
+-- 3. CORPORATE INTELLIGENCE & SHARED MARKET DATA (PUBLIC READ)
+-- ============================================================
+
+-- Induk Perusahaan (Companies)
+CREATE TABLE IF NOT EXISTS companies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    legal_name VARCHAR(255),
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    industry_id VARCHAR(100),
+    industry_sector VARCHAR(100) NOT NULL,
+    company_type VARCHAR(50) DEFAULT 'SWASTA',
+    website TEXT,
+    linkedin_url TEXT,
+    headquarters VARCHAR(255),
+    employee_range VARCHAR(50),
+    revenue_range VARCHAR(50),
+    is_public BOOLEAN DEFAULT FALSE,
+    ticker VARCHAR(20),
+    parent_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    alias_keywords TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Profil Kebijakan CSR Perusahaan
+CREATE TABLE IF NOT EXISTS company_csr_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID UNIQUE NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    has_csr BOOLEAN DEFAULT TRUE NOT NULL,
+    csr_department_name VARCHAR(255),
+    csr_email_public VARCHAR(255),
+    csr_focus TEXT[] DEFAULT '{}',
+    budget_range VARCHAR(100),
+    proposal_acceptance VARCHAR(50) DEFAULT 'OPEN',
+    website_source TEXT,
+    last_verified_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Taksonomi Fokus CSR
+CREATE TABLE IF NOT EXISTS csr_focuses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Relasi Fokus CSR Perusahaan (Junction Table)
+CREATE TABLE IF NOT EXISTS company_csr_focuses (
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    focus_id UUID NOT NULL REFERENCES csr_focuses(id) ON DELETE CASCADE,
+    priority SMALLINT,
+    confidence NUMERIC(5,2),
+    source_id UUID,
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (company_id, focus_id)
+);
+
+-- Program CSR Perusahaan
+CREATE TABLE IF NOT EXISTS company_csr_programs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    program_type VARCHAR(50),
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    budget_amount NUMERIC(15,2),
+    impact_summary TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Relasi Program CSR dengan Taksonomi Fokus
+CREATE TABLE IF NOT EXISTS company_csr_program_focuses (
+    program_id UUID NOT NULL REFERENCES company_csr_programs(id) ON DELETE CASCADE,
+    focus_id UUID NOT NULL REFERENCES csr_focuses(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (program_id, focus_id)
+);
+
+-- Profil ESG Perusahaan
+CREATE TABLE IF NOT EXISTS company_esg_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    reporting_year SMALLINT NOT NULL,
+    report_date DATE,
+    overall_score NUMERIC(5,2),
+    environmental_score NUMERIC(5,2),
+    social_score NUMERIC(5,2),
+    governance_score NUMERIC(5,2),
+    esg_rating VARCHAR(50),
+    sustainability_strategy TEXT,
+    sdg_alignment JSONB DEFAULT '{}'::jsonb,
+    source_id UUID,
+    confidence NUMERIC(5,2),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(company_id, reporting_year)
+);
+
+-- Taksonomi Topik Materialitas ESG (GRI/SASB)
+CREATE TABLE IF NOT EXISTS esg_material_topics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Relasi Skor Materialitas ESG Perusahaan
+CREATE TABLE IF NOT EXISTS company_esg_material_topics (
+    esg_profile_id UUID NOT NULL REFERENCES company_esg_profiles(id) ON DELETE CASCADE,
+    topic_id UUID NOT NULL REFERENCES esg_material_topics(id) ON DELETE CASCADE,
+    materiality_score NUMERIC(5,2),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (esg_profile_id, topic_id)
+);
+
+-- Sinyal Intelijen Pasar & Media (Public Signals)
 CREATE TABLE IF NOT EXISTS public_corporate_signals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
     company_name VARCHAR(255) NOT NULL,
     industry_sector VARCHAR(100),
     source_type signal_source_enum NOT NULL,
@@ -86,7 +220,25 @@ CREATE TABLE IF NOT EXISTS public_corporate_signals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. TENANT ISOLATED TABLES (RLS ENFORCED)
+-- Target Crawling Intelijen Pasar
+CREATE TABLE IF NOT EXISTS crawling_targets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    target_url TEXT NOT NULL UNIQUE,
+    source_type VARCHAR(50) NOT NULL,
+    industry_sector VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    crawl_frequency VARCHAR(50) DEFAULT 'WEEKLY',
+    last_crawled_at TIMESTAMP WITH TIME ZONE,
+    next_crawl_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================
+-- 4. TENANT ISOLATED TABLES (RLS ENFORCED)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS institution_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -116,46 +268,43 @@ CREATE TABLE IF NOT EXISTS deal_pipelines (
 );
 
 -- ============================================================
--- 6. ROW-LEVEL SECURITY (RLS) POLICIES
+-- 5. ROW-LEVEL SECURITY (RLS) POLICIES
 -- ============================================================
-
--- Activate RLS
 ALTER TABLE institution_programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE institution_programs FORCE ROW LEVEL SECURITY;
 
 ALTER TABLE deal_pipelines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deal_pipelines FORCE ROW LEVEL SECURITY;
 
--- Policies for institution_programs
 CREATE POLICY tenant_isolation_programs ON institution_programs
     FOR ALL
     USING (org_id = NULLIF(current_setting('app.current_org_id', true), '')::UUID)
     WITH CHECK (org_id = NULLIF(current_setting('app.current_org_id', true), '')::UUID);
 
--- Policies for deal_pipelines
 CREATE POLICY tenant_isolation_deals ON deal_pipelines
     FOR ALL
     USING (org_id = NULLIF(current_setting('app.current_org_id', true), '')::UUID)
     WITH CHECK (org_id = NULLIF(current_setting('app.current_org_id', true), '')::UUID);
 
 -- ============================================================
--- 7. PERFORMANCE INDEXES (HNSW & BTREE)
+-- 6. PERFORMANCE INDEXES
 -- ============================================================
+CREATE INDEX IF NOT EXISTS idx_signals_embedding ON public_corporate_signals USING hnsw (signal_embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_programs_embedding ON institution_programs USING hnsw (program_embedding vector_cosine_ops);
 
-CREATE INDEX IF NOT EXISTS idx_signals_embedding 
-    ON public_corporate_signals 
-    USING hnsw (signal_embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_companies_company_type ON companies(company_type);
+CREATE INDEX IF NOT EXISTS idx_companies_is_public ON companies(is_public);
+CREATE INDEX IF NOT EXISTS idx_companies_ticker ON companies(ticker);
+CREATE INDEX IF NOT EXISTS idx_companies_parent ON companies(parent_company_id);
 
-CREATE INDEX IF NOT EXISTS idx_programs_embedding 
-    ON institution_programs 
-    USING hnsw (program_embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_csr_profiles_company ON company_csr_profiles(company_id);
+CREATE INDEX IF NOT EXISTS idx_csr_focuses_code ON csr_focuses(code);
+CREATE INDEX IF NOT EXISTS idx_esg_profiles_company_year ON company_esg_profiles(company_id, reporting_year);
+CREATE INDEX IF NOT EXISTS idx_esg_topics_code ON esg_material_topics(code);
 
 CREATE INDEX IF NOT EXISTS idx_programs_org_id ON institution_programs(org_id);
 CREATE INDEX IF NOT EXISTS idx_deals_org_id ON deal_pipelines(org_id);
 CREATE INDEX IF NOT EXISTS idx_deals_stage ON deal_pipelines(deal_stage);
-CREATE INDEX IF NOT EXISTS idx_signals_intent ON public_corporate_signals(intent_score DESC);
-CREATE INDEX IF NOT EXISTS idx_signals_hash ON public_corporate_signals(content_hash);
-
 ```
 
 ---
@@ -166,7 +315,17 @@ CREATE INDEX IF NOT EXISTS idx_signals_hash ON public_corporate_signals(content_
 | --- | --- | --- | --- |
 | `organizations` | Data tenant/lembaga zakat/NGO terdaftar | Global System | PK: `id` |
 | `users` | Akun pengguna/fundraiser di bawah tenant | Global System | PK: `id`, FK: `org_id` -> `organizations.id` |
-| `public_corporate_signals` | Data intelijen CSR/ESG hasil ekstraksi crawler | Shared (Public Read) | PK: `id` |
+| `companies` | Induk direktori entitas korporasi | Shared (Public) | PK: `id`, FK: `parent_company_id` -> `companies.id` |
+| `company_csr_profiles` | Kebijakan, kontak, & estimasi budget CSR perusahaan | Shared (Public) | PK: `id`, FK: `company_id` -> `companies.id` |
+| `csr_focuses` | Taksonomi bidang fokus CSR | Shared (Public) | PK: `id`, UNIQUE: `code` |
+| `company_csr_focuses` | Relasi prioritas fokus CSR per perusahaan | Shared (Public) | PK: (`company_id`, `focus_id`) |
+| `company_csr_programs` | Portofolio program CSR milik korporasi | Shared (Public) | PK: `id`, FK: `company_id` -> `companies.id` |
+| `company_csr_program_focuses` | Relasi program CSR korporasi dengan bidang fokus | Shared (Public) | PK: (`program_id`, `focus_id`) |
+| `company_esg_profiles` | Skor, rating, dan strategi keberlanjutan ESG | Shared (Public) | PK: `id`, FK: `company_id` -> `companies.id`, UNIQUE: (`company_id`, `reporting_year`) |
+| `esg_material_topics` | Taksonomi topik materialitas ESG (GRI/SASB) | Shared (Public) | PK: `id`, UNIQUE: `code` |
+| `company_esg_material_topics` | Skor materialitas topik ESG per profil perusahaan | Shared (Public) | PK: (`esg_profile_id`, `topic_id`) |
+| `public_corporate_signals` | Data intelijen CSR/ESG hasil ekstraksi crawler | Shared (Public) | PK: `id`, FK: `company_id` -> `companies.id` |
+| `crawling_targets` | Target situs web & portal berita crawling | Shared (Public) | PK: `id`, FK: `company_id` -> `companies.id` |
 | `institution_programs` | Portofolio program unggulan & embedding program | **RLS Enforced** | PK: `id`, FK: `org_id` -> `organizations.id` |
 | `deal_pipelines` | Prospek, naskah proposal, dan tracking negosiasi | **RLS Enforced** | PK: `id`, FK: `org_id`, FK: `signal_id`, FK: `target_program_id` |
 

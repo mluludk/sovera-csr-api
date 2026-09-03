@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"log"
 	"time"
 
@@ -13,23 +11,29 @@ import (
 
 	"sovera-core-api/internal/queue"
 	"sovera-core-api/internal/repository"
+	"sovera-core-api/internal/service/normalizer"
 )
 
 type WebhookHandler struct {
 	dbPool      *pgxpool.Pool
 	asynqClient *asynq.Client
 	crawlerRepo *repository.CrawlerRepository
+	normalizer  *normalizer.Normalizer
 }
 
-func NewWebhookHandler(dbPool *pgxpool.Pool, asynqClient *asynq.Client) *WebhookHandler {
+func NewWebhookHandler(dbPool *pgxpool.Pool, asynqClient *asynq.Client, norm *normalizer.Normalizer) *WebhookHandler {
 	var crawlerRepo *repository.CrawlerRepository
 	if dbPool != nil {
 		crawlerRepo = repository.NewCrawlerRepository(dbPool)
+	}
+	if norm == nil {
+		norm = normalizer.NewNormalizer()
 	}
 	return &WebhookHandler{
 		dbPool:      dbPool,
 		asynqClient: asynqClient,
 		crawlerRepo: crawlerRepo,
+		normalizer:  norm,
 	}
 }
 
@@ -165,13 +169,9 @@ func (h *WebhookHandler) HandleCrawlerWebhook(c *fiber.Ctx) error {
 		}
 	}
 
-	// Calculate SHA-256 content_hash for deduplication
-	contentToHash := payload.RawText
-	if contentToHash == "" {
-		contentToHash = payload.MarkdownContent
-	}
-	hash := sha256.Sum256([]byte(contentToHash))
-	contentHash := hex.EncodeToString(hash[:])
+	// Calculate SHA-256 content_hash for deduplication via Normalizer
+	bestContent := h.normalizer.SelectBestContent(payload.RawText, payload.MarkdownContent)
+	contentHash := h.normalizer.GenerateContentHash(bestContent)
 
 	jobID := "job_ingest_" + uuid.New().String()[:8]
 

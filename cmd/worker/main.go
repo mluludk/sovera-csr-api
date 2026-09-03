@@ -12,6 +12,9 @@ import (
 	"sovera-core-api/internal/repository"
 	"sovera-core-api/internal/service/ai"
 	"sovera-core-api/internal/service/crawler"
+	"sovera-core-api/internal/service/entityresolver"
+	"sovera-core-api/internal/service/esgextractor"
+	"sovera-core-api/internal/service/normalizer"
 )
 
 func main() {
@@ -31,11 +34,16 @@ func main() {
 
 	// 2. Services & Worker Dependencies
 	geminiService := ai.NewGeminiService(cfg.AIAPIKey)
+	textNormalizer := normalizer.NewNormalizer()
+	companyRepo := repository.NewCompanyRepository(dbPool)
+	entityResolver := entityresolver.NewEntityResolver(companyRepo)
 	signalRepo := repository.NewSignalRepository(dbPool)
+	esgRepo := repository.NewESGProfileRepository(dbPool)
+	esgExtractor := esgextractor.NewESGExtractor(geminiService, esgRepo, textNormalizer, entityResolver)
 	crawlerRepo := repository.NewCrawlerRepository(dbPool)
 	dispatcher := crawler.NewDispatcher(cfg)
 
-	extractionWorker := queue.NewExtractionWorker(geminiService, signalRepo)
+	extractionWorker := queue.NewExtractionWorker(geminiService, signalRepo, textNormalizer, entityResolver, esgExtractor)
 	dispatcherWorker := queue.NewCrawlerDispatcherHandler(crawlerRepo, dispatcher)
 
 	// 3. Asynq Scheduler for Periodic Tasks
@@ -79,6 +87,7 @@ func main() {
 				queue.QueueDispatchCrawling:   10,
 				queue.QueueRawIngestion:       10,
 				queue.QueueLLMExtraction:      5,
+				queue.QueueESGExtraction:      5,
 				queue.QueueProposalGeneration: 3,
 			},
 		},
@@ -89,6 +98,7 @@ func main() {
 	// Register Asynq task handlers
 	mux.HandleFunc(queue.TypeDispatchCrawling, dispatcherWorker.HandleDispatchCrawlingTask)
 	mux.HandleFunc(queue.TypeLLMExtraction, extractionWorker.ProcessExtractionTask)
+	mux.HandleFunc(queue.TypeESGExtraction, extractionWorker.ProcessESGTask)
 
 	log.Println("Asynq Worker server listening for queue jobs...")
 	if err := srv.Run(mux); err != nil {

@@ -1,9 +1,16 @@
 -- Migration: Add tenant_id column and RLS policy to crawling_targets
 -- NOTE: Column renamed to org_id for naming consistency in migration 000005
 
--- 1. Add tenant_id column (NULL = Public/Global target, UUID = Tenant-specific private target)
-ALTER TABLE crawling_targets 
-ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+-- 1. Add tenant_id column safely if neither tenant_id nor org_id exists
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'crawling_targets' AND column_name IN ('tenant_id', 'org_id')
+    ) THEN
+        ALTER TABLE crawling_targets ADD COLUMN tenant_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- 2. Index for tenant query optimization
 CREATE INDEX IF NOT EXISTS idx_crawling_targets_tenant 

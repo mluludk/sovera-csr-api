@@ -21,6 +21,7 @@ import (
 	"sovera-core-api/internal/repository"
 	"sovera-core-api/internal/service/ai"
 	"sovera-core-api/internal/service/exporter"
+	"sovera-core-api/internal/service/normalizer"
 )
 
 func main() {
@@ -54,6 +55,7 @@ func main() {
 	// 4. Initialize Services & Repositories
 	geminiService := ai.NewGeminiService(cfg.AIAPIKey)
 	docExporter := exporter.NewDocumentExporter()
+	textNormalizer := normalizer.NewNormalizer()
 
 	signalRepo := repository.NewSignalRepository(dbPool)
 	programRepo := repository.NewProgramRepository(dbPool)
@@ -83,7 +85,7 @@ func main() {
 
 	// 7. Register Handlers & Controllers
 	healthHandler := handler.NewHealthHandler(dbPool)
-	webhookHandler := handler.NewWebhookHandler(dbPool, asynqClient)
+	webhookHandler := handler.NewWebhookHandler(dbPool, asynqClient, textNormalizer)
 	signalHandler := handler.NewSignalHandler(signalRepo)
 	programHandler := handler.NewProgramHandler(programRepo, geminiService)
 	dealHandler := handler.NewDealHandler(dealRepo, programRepo, signalRepo, geminiService, docExporter)
