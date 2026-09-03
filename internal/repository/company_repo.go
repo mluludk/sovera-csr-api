@@ -28,7 +28,7 @@ func (r *CompanyRepository) ListCompanies(ctx context.Context, limit, offset int
 	argIdx := 1
 
 	if search != "" {
-		whereClause += fmt.Sprintf(" AND (c.name ILIKE $%d OR array_to_string(c.alias_keywords, ' ') ILIKE $%d OR c.stock_code ILIKE $%d)", argIdx, argIdx, argIdx)
+		whereClause += fmt.Sprintf(" AND (c.name ILIKE $%d OR array_to_string(c.alias_keywords, ' ') ILIKE $%d OR c.stock_code ILIKE $%d OR c.ticker ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
 		args = append(args, "%"+search+"%")
 		argIdx++
 	}
@@ -47,8 +47,10 @@ func (r *CompanyRepository) ListCompanies(ctx context.Context, limit, offset int
 
 	query := fmt.Sprintf(`
 		SELECT 
-			c.id::text, c.name, c.slug, c.stock_code, c.industry_sector, 
-			COALESCE(c.alias_keywords, '{}'), c.website_url, c.created_at, c.updated_at,
+			c.id::text, c.name, c.legal_name, c.slug, c.industry_id, c.industry_sector,
+			c.company_type, c.website, c.website_url, c.linkedin_url, c.headquarters,
+			c.employee_range, c.revenue_range, c.is_public, c.ticker, c.stock_code,
+			c.parent_company_id::text, COALESCE(c.alias_keywords, '{}'), c.created_at, c.updated_at,
 			(SELECT COUNT(*) FROM crawling_targets t WHERE t.company_id = c.id) AS target_count,
 			(SELECT COUNT(*) FROM public_corporate_signals s WHERE s.company_id = c.id OR s.company_name ILIKE c.name) AS signal_count,
 			COALESCE((SELECT SUM(s.estimated_budget_signal) FROM public_corporate_signals s WHERE s.company_id = c.id OR s.company_name ILIKE c.name), 0) AS total_budget
@@ -70,8 +72,10 @@ func (r *CompanyRepository) ListCompanies(ctx context.Context, limit, offset int
 	for rows.Next() {
 		var cd model.CompanyDetail
 		err := rows.Scan(
-			&cd.ID, &cd.Name, &cd.Slug, &cd.StockCode, &cd.IndustrySector,
-			&cd.AliasKeywords, &cd.WebsiteURL, &cd.CreatedAt, &cd.UpdatedAt,
+			&cd.ID, &cd.Name, &cd.LegalName, &cd.Slug, &cd.IndustryID, &cd.IndustrySector,
+			&cd.CompanyType, &cd.Website, &cd.WebsiteURL, &cd.LinkedinURL, &cd.Headquarters,
+			&cd.EmployeeRange, &cd.RevenueRange, &cd.IsPublic, &cd.Ticker, &cd.StockCode,
+			&cd.ParentCompanyID, &cd.AliasKeywords, &cd.CreatedAt, &cd.UpdatedAt,
 			&cd.TargetCount, &cd.SignalCount, &cd.TotalBudget,
 		)
 		if err != nil {
@@ -91,8 +95,10 @@ func (r *CompanyRepository) GetCompanyByID(ctx context.Context, idOrSlug string)
 
 	query := `
 		SELECT 
-			c.id::text, c.name, c.slug, c.stock_code, c.industry_sector, 
-			COALESCE(c.alias_keywords, '{}'), c.website_url, c.created_at, c.updated_at,
+			c.id::text, c.name, c.legal_name, c.slug, c.industry_id, c.industry_sector,
+			c.company_type, c.website, c.website_url, c.linkedin_url, c.headquarters,
+			c.employee_range, c.revenue_range, c.is_public, c.ticker, c.stock_code,
+			c.parent_company_id::text, COALESCE(c.alias_keywords, '{}'), c.created_at, c.updated_at,
 			(SELECT COUNT(*) FROM crawling_targets t WHERE t.company_id = c.id) AS target_count,
 			(SELECT COUNT(*) FROM public_corporate_signals s WHERE s.company_id = c.id OR s.company_name ILIKE c.name) AS signal_count,
 			COALESCE((SELECT SUM(s.estimated_budget_signal) FROM public_corporate_signals s WHERE s.company_id = c.id OR s.company_name ILIKE c.name), 0) AS total_budget
@@ -103,8 +109,10 @@ func (r *CompanyRepository) GetCompanyByID(ctx context.Context, idOrSlug string)
 
 	var cd model.CompanyDetail
 	err := r.pool.QueryRow(ctx, query, idOrSlug).Scan(
-		&cd.ID, &cd.Name, &cd.Slug, &cd.StockCode, &cd.IndustrySector,
-		&cd.AliasKeywords, &cd.WebsiteURL, &cd.CreatedAt, &cd.UpdatedAt,
+		&cd.ID, &cd.Name, &cd.LegalName, &cd.Slug, &cd.IndustryID, &cd.IndustrySector,
+		&cd.CompanyType, &cd.Website, &cd.WebsiteURL, &cd.LinkedinURL, &cd.Headquarters,
+		&cd.EmployeeRange, &cd.RevenueRange, &cd.IsPublic, &cd.Ticker, &cd.StockCode,
+		&cd.ParentCompanyID, &cd.AliasKeywords, &cd.CreatedAt, &cd.UpdatedAt,
 		&cd.TargetCount, &cd.SignalCount, &cd.TotalBudget,
 	)
 	if err != nil {
