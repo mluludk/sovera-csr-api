@@ -51,7 +51,7 @@ services:
       - AI_API_KEY=${AI_API_KEY}
       - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-https://api-scraper.megasolusindo.com/api/v1/scrape-tasks}
       - SCRAPER_API_KEY=${SCRAPER_API_KEY:-change-me}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler?secret=super_secret_crawler_key_123}
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,7 +73,7 @@ services:
       - AI_API_KEY=${AI_API_KEY}
       - SCRAPER_SERVICE_URL=${SCRAPER_SERVICE_URL:-https://api-scraper.megasolusindo.com/api/v1/scrape-tasks}
       - SCRAPER_API_KEY=${SCRAPER_API_KEY:-change-me}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://host.docker.internal:4000/api/v1/webhooks/crawler?secret=super_secret_crawler_key_123}
     depends_on:
       postgres:
         condition: service_healthy
