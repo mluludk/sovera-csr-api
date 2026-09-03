@@ -22,7 +22,7 @@ func NewCrawlerRepository(pool *pgxpool.Pool) *CrawlerRepository {
 // Ignores targets that have been disabled due to dead links (404).
 func (r *CrawlerRepository) GetDueTargets(ctx context.Context, limit int) ([]model.CrawlingTarget, error) {
 	query := `
-		SELECT id, source_name, source_type, target_url, check_interval_hours, 
+		SELECT id, company_id::text, source_name, source_type, target_url, check_interval_hours, 
 		       last_scraped_at, next_run_at, is_active, consecutive_failures,
 		       last_http_status, last_error_message, health_status, created_at, updated_at
 		FROM crawling_targets
@@ -40,7 +40,7 @@ func (r *CrawlerRepository) GetDueTargets(ctx context.Context, limit int) ([]mod
 	for rows.Next() {
 		var t model.CrawlingTarget
 		err := rows.Scan(
-			&t.ID, &t.SourceName, &t.SourceType, &t.TargetURL, &t.CheckIntervalHours,
+			&t.ID, &t.CompanyID, &t.SourceName, &t.SourceType, &t.TargetURL, &t.CheckIntervalHours,
 			&t.LastScrapedAt, &t.NextRunAt, &t.IsActive, &t.ConsecutiveFailures,
 			&t.LastHTTPStatus, &t.LastErrorMsg, &t.HealthStatus, &t.CreatedAt, &t.UpdatedAt,
 		)

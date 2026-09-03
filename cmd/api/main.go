@@ -59,6 +59,7 @@ func main() {
 	programRepo := repository.NewProgramRepository(dbPool)
 	dealRepo := repository.NewDealRepository(dbPool)
 	userRepo := repository.NewUserRepository(dbPool)
+	companyRepo := repository.NewCompanyRepository(dbPool)
 
 	// 5. Create Fiber Web Application
 	app := fiber.New(fiber.Config{
@@ -87,6 +88,7 @@ func main() {
 	programHandler := handler.NewProgramHandler(programRepo, geminiService)
 	dealHandler := handler.NewDealHandler(dealRepo, programRepo, signalRepo, geminiService, docExporter)
 	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret)
+	companyHandler := handler.NewCompanyHandler(companyRepo)
 
 	// Root & Health check routes (public)
 	app.Get("/health", healthHandler.HealthCheck)
@@ -109,6 +111,10 @@ func main() {
 
 	// ─── JWT-Protected Routes ─────────────────────────────────────────────────
 	jwtGuard := middleware.AuthenticateJWT(cfg.JWTSecret)
+
+	// Companies Directory — semua role
+	apiV1.Get("/companies", jwtGuard, companyHandler.ListCompanies)
+	apiV1.Get("/companies/:id", jwtGuard, companyHandler.GetCompany)
 
 	// Corporate Intelligence Feeds — semua role
 	apiV1.Get("/signals", jwtGuard, signalHandler.ListSignals)

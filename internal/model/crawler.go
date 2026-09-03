@@ -6,6 +6,7 @@ import (
 
 type CrawlingTarget struct {
 	ID                 string     `json:"id" db:"id"`
+	CompanyID          *string    `json:"company_id,omitempty" db:"company_id"`
 	SourceName         string     `json:"source_name" db:"source_name"`
 	SourceType         string     `json:"source_type" db:"source_type"`
 	TargetURL          string     `json:"target_url" db:"target_url"`
@@ -43,6 +44,7 @@ type ScrapeTaskConfig struct {
 type ScrapeTaskPayload struct {
 	TaskID       string            `json:"task_id"`
 	TargetID     string            `json:"target_id,omitempty"`
+	CompanyID    string            `json:"company_id,omitempty"`
 	ClientOrigin string            `json:"client_origin"`
 	SourceType   string            `json:"source_type"`
 	TargetURL    string            `json:"target_url"`

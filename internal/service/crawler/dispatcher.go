@@ -32,9 +32,15 @@ func (d *Dispatcher) DispatchTask(ctx context.Context, target model.CrawlingTarg
 		return 0, fmt.Errorf("SCRAPER_SERVICE_URL is not configured")
 	}
 
+	companyID := ""
+	if target.CompanyID != nil {
+		companyID = *target.CompanyID
+	}
+
 	payload := model.ScrapeTaskPayload{
 		TaskID:       taskID,
 		TargetID:     target.ID,
+		CompanyID:    companyID,
 		ClientOrigin: "sovera_b2b_engine",
 		SourceType:   mapSourceType(target.SourceType),
 		TargetURL:    target.TargetURL,

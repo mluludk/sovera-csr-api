@@ -1,0 +1,226 @@
+-- Migration 000008: Create companies table and associate crawling_targets and signals
+
+CREATE TABLE IF NOT EXISTS companies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    stock_code VARCHAR(20),
+    industry_sector VARCHAR(100) NOT NULL,
+    alias_keywords TEXT[] DEFAULT '{}',
+    website_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE crawling_targets 
+ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE SET NULL;
+
+ALTER TABLE public_corporate_signals 
+ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_crawling_targets_company_id ON crawling_targets(company_id);
+CREATE INDEX IF NOT EXISTS idx_public_corporate_signals_company_id ON public_corporate_signals(company_id);
+
+-- 1. Seed 100 Companies
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pertamina (Persero)', 'pertamina', NULL, 'BUMN & Energi', ARRAY['Pertamina', 'PT Pertamina']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pertamina Geothermal Energy Tbk', 'pertamina-geothermal-energy', 'PGEO', 'BUMN & Energi', ARRAY['Pertamina Geothermal Energy', 'PGE']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pertamina EP', 'pertamina-ep', NULL, 'BUMN & Energi', ARRAY['Pertamina EP']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pertamina Hulu Energi', 'pertamina-hulu-energi', NULL, 'BUMN & Energi', ARRAY['Pertamina Hulu Energi', 'PHE']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pertamina Patra Niaga', 'pertamina-patra-niaga', NULL, 'BUMN & Energi', ARRAY['Pertamina Patra Niaga']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT PLN (Persero)', 'pln', NULL, 'BUMN & Energi', ARRAY['PLN', 'PT PLN']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT PLN Energi Gas', 'pln-energi-gas', NULL, 'BUMN & Energi', ARRAY['PLN Energi Gas']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Perusahaan Gas Negara Tbk', 'pgn', 'PGAS', 'BUMN & Energi', ARRAY['PGN', 'Perusahaan Gas Negara']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indonesia Asahan Aluminium', 'inalum', NULL, 'BUMN & Energi', ARRAY['Inalum', 'Indonesia Asahan Aluminium']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bukit Asam Tbk', 'bukit-asam', 'PTBA', 'BUMN & Energi', ARRAY['Bukit Asam']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Aneka Tambang Tbk', 'antam', 'ANTM', 'BUMN & Energi', ARRAY['Antam', 'Aneka Tambang']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Kilang Pertamina Internasional', 'kilang-pertamina-internasional', NULL, 'BUMN & Energi', ARRAY['Kilang Pertamina Internasional', 'KPI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Mining Industry Indonesia (MIND ID)', 'mind-id', NULL, 'BUMN & Energi', ARRAY['MIND ID', 'Mining Industry Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Timah Tbk', 'timah-tbk', 'TINS', 'BUMN & Energi', ARRAY['Timah Tbk', 'Timah']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Vale Indonesia Tbk', 'vale-indonesia', 'INCO', 'BUMN & Energi', ARRAY['Vale Indonesia', 'PT Vale']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Freeport Indonesia', 'freeport-indonesia', NULL, 'BUMN & Energi', ARRAY['Freeport Indonesia', 'PTFI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Adaro Energy Indonesia Tbk', 'adaro-energy', 'ADRO', 'BUMN & Energi', ARRAY['Adaro Energy', 'Adaro']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('Harbour Energy Indonesia', 'harbour-energy', NULL, 'BUMN & Energi', ARRAY['Harbour Energy']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Mandiri (Persero) Tbk', 'bank-mandiri', 'BMRI', 'Perbankan & Finansial', ARRAY['Bank Mandiri', 'Mandiri']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Rakyat Indonesia (Persero) Tbk', 'bank-rakyat-indonesia', 'BBRI', 'Perbankan & Finansial', ARRAY['Bank Rakyat Indonesia', 'BRI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Negara Indonesia (Persero) Tbk', 'bank-negara-indonesia', 'BBNI', 'Perbankan & Finansial', ARRAY['Bank Negara Indonesia', 'BNI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Central Asia Tbk', 'bank-central-asia', 'BBCA', 'Perbankan & Finansial', ARRAY['Bank Central Asia', 'BCA']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Pembangunan Daerah Kalimantan Barat', 'bank-kalbar', NULL, 'Perbankan & Finansial', ARRAY['Bank Kalbar']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Syariah Indonesia Tbk', 'bank-syariah-indonesia', 'BRIS', 'Perbankan & Finansial', ARRAY['Bank Syariah Indonesia', 'BSI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank CIMB Niaga Tbk', 'bank-cimb-niaga', 'BNGA', 'Perbankan & Finansial', ARRAY['Bank CIMB Niaga', 'CIMB Niaga']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Danamon Indonesia Tbk', 'bank-danamon', 'BDMN', 'Perbankan & Finansial', ARRAY['Bank Danamon', 'Danamon']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank OCBC NISP Tbk', 'bank-ocbc-nisp', 'NISP', 'Perbankan & Finansial', ARRAY['Bank OCBC NISP', 'OCBC NISP']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Bank Permata Tbk', 'bank-permata', 'BNLI', 'Perbankan & Finansial', ARRAY['Bank Permata', 'Permata Bank']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Prudential Life Assurance', 'prudential-indonesia', NULL, 'Perbankan & Finansial', ARRAY['Prudential Indonesia', 'Prudential']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT AIA Financial', 'aia-indonesia', NULL, 'Perbankan & Finansial', ARRAY['AIA Indonesia', 'AIA Financial']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Asuransi Allianz Utama Indonesia', 'allianz-indonesia', NULL, 'Perbankan & Finansial', ARRAY['Allianz Indonesia', 'Allianz']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sun Life Financial Indonesia', 'sun-life-indonesia', NULL, 'Perbankan & Finansial', ARRAY['Sun Life Indonesia', 'Sun Life']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Finnet Indonesia', 'finnet-indonesia', NULL, 'Perbankan & Finansial', ARRAY['Finnet Indonesia', 'Finnet']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT BPR Bank Bapas 69', 'bpr-bank-bapas-69', NULL, 'Perbankan & Finansial', ARRAY['BPR Bank Bapas 69', 'Bank Bapas 69']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Telkom Indonesia (Persero) Tbk', 'telkom-indonesia', 'TLKM', 'Telekomunikasi & Teknologi', ARRAY['Telkom Indonesia', 'Telkom']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Telekomunikasi Selular', 'telkomsel', NULL, 'Telekomunikasi & Teknologi', ARRAY['Telkomsel']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indosat Tbk (Indosat Ooredoo Hutchison)', 'indosat-ooredoo-hutchison', 'ISAT', 'Telekomunikasi & Teknologi', ARRAY['Indosat Ooredoo Hutchison', 'Indosat']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT XL Axiata Tbk', 'xl-axiata', 'EXCL', 'Telekomunikasi & Teknologi', ARRAY['XL Axiata', 'XL']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Smartfren Telecom Tbk', 'smartfren', 'FREN', 'Telekomunikasi & Teknologi', ARRAY['Smartfren']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Global Infotech Solution', 'global-infotech-solution', NULL, 'Telekomunikasi & Teknologi', ARRAY['Global Infotech Solution']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Unilever Indonesia Tbk', 'unilever-indonesia', 'UNVR', 'Consumer Goods & F&B', ARRAY['Unilever Indonesia', 'Unilever']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Nestle Indonesia', 'nestle-indonesia', NULL, 'Consumer Goods & F&B', ARRAY['Nestle Indonesia', 'Nestle']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indofood Sukses Makmur Tbk', 'indofood-sukses-makmur', 'INDF', 'Consumer Goods & F&B', ARRAY['Indofood Sukses Makmur', 'Indofood']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Tirta Investama (Danone Indonesia)', 'danone-indonesia', NULL, 'Consumer Goods & F&B', ARRAY['Danone Indonesia', 'AQUA', 'Danone']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Mayora Indah Tbk', 'mayora-indah', 'MYOR', 'Consumer Goods & F&B', ARRAY['Mayora Indah', 'Mayora']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Wings Surya (Wings Group)', 'wings-group', NULL, 'Consumer Goods & F&B', ARRAY['Wings Group', 'Wings Surya']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sarihusada Generasi Mahardhika', 'sarihusada-generasi-mahardhika', NULL, 'Consumer Goods & F&B', ARRAY['Sarihusada Generasi Mahardhika', 'Sarihusada']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Coca-Cola Indonesia', 'coca-cola-indonesia', NULL, 'Consumer Goods & F&B', ARRAY['Coca-Cola Indonesia', 'Coca Cola']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Industri Jamu dan Farmasi Sido Muncul Tbk', 'sido-muncul', 'SIDO', 'Consumer Goods & F&B', ARRAY['Sido Muncul']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Kalbe Farma Tbk', 'kalbe-farma', 'KLBF', 'Consumer Goods & F&B', ARRAY['Kalbe Farma', 'Kalbe']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Astra International Tbk', 'astra-international', 'ASII', 'Otomotif', ARRAY['Astra International', 'Astra']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Toyota-Astra Motor', 'toyota-astra-motor', NULL, 'Otomotif', ARRAY['Toyota Astra Motor', 'Toyota Astra']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Honda Prospect Motor', 'honda-prospect-motor', NULL, 'Otomotif', ARRAY['Honda Prospect Motor']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Suzuki Indomobil Sales', 'suzuki-indomobil', NULL, 'Otomotif', ARRAY['Suzuki Indomobil']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Hyundai Motor Manufacturing Indonesia', 'hyundai-motor-indonesia', NULL, 'Otomotif', ARRAY['Hyundai Motor Indonesia', 'Hyundai']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Semen Indonesia (Persero) Tbk', 'semen-indonesia', 'SMGR', 'Semen, Konstruksi & Manufaktur', ARRAY['Semen Indonesia', 'SIG']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indocement Tunggal Prakarsa Tbk', 'indocement-tunggal-prakarsa', 'INTP', 'Semen, Konstruksi & Manufaktur', ARRAY['Indocement Tunggal Prakarsa', 'Indocement']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Solusi Bangun Indonesia Tbk (Holcim)', 'holcim-indonesia', 'SMCB', 'Semen, Konstruksi & Manufaktur', ARRAY['Holcim Indonesia', 'Solusi Bangun Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Jasa Marga (Persero) Tbk', 'jasa-marga', 'JSMR', 'Semen, Konstruksi & Manufaktur', ARRAY['Jasa Marga']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Waskita Karya (Persero) Tbk', 'waskita-karya', 'WSKT', 'Semen, Konstruksi & Manufaktur', ARRAY['Waskita Karya', 'Waskita']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Wijaya Karya (Persero) Tbk', 'wijaya-karya-wika', 'WIKA', 'Semen, Konstruksi & Manufaktur', ARRAY['Wijaya Karya WIKA', 'WIKA']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT PP (Persero) Tbk', 'pembangunan-perumahan-pp', 'PTPP', 'Semen, Konstruksi & Manufaktur', ARRAY['Pembangunan Perumahan PP', 'PTPP']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Tower Bersama Infrastructure Tbk', 'tower-bersama-infrastructure-tbig', 'TBIG', 'Semen, Konstruksi & Manufaktur', ARRAY['Tower Bersama Infrastructure TBIG', 'TBIG']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('Sinar Mas Group', 'sinar-mas-group', NULL, 'Semen, Konstruksi & Manufaktur', ARRAY['Sinar Mas Group', 'Sinar Mas']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indah Kiat Pulp & Paper Tbk', 'indah-kiat-pulp-paper', 'INKP', 'Semen, Konstruksi & Manufaktur', ARRAY['Indah Kiat Pulp Paper', 'Indah Kiat']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Cirebon Electric Power', 'cirebon-power', NULL, 'Semen, Konstruksi & Manufaktur', ARRAY['Cirebon Power']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Kawasan Industri Terpadu Batang', 'kawasan-industri-terpadu-batang', NULL, 'Semen, Konstruksi & Manufaktur', ARRAY['Kawasan Industri Terpadu Batang', 'KIT Batang']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sinar Mas Agro Resources and Technology Tbk', 'sinar-mas-agribusiness', 'SMAR', 'Agribisnis & Perkebunan', ARRAY['Sinar Mas Agribusiness', 'SMART Tbk']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sawit Sumbermas Sarana Tbk', 'sawit-sumbermas-sarana', 'SSMS', 'Agribisnis & Perkebunan', ARRAY['Sawit Sumbermas Sarana']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT FKS Multi Agro Tbk', 'fks-multi-agro-sejahtera', 'FISH', 'Agribisnis & Perkebunan', ARRAY['FKS Multi Agro Sejahtera', 'FKS Multi Agro']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Astra Agro Lestari Tbk', 'astra-agro-lestari', 'AALI', 'Agribisnis & Perkebunan', ARRAY['Astra Agro Lestari']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Perkebunan Nusantara (Persero)', 'perkebunan-nusantara-ptpn', NULL, 'Agribisnis & Perkebunan', ARRAY['Perkebunan Nusantara PTPN', 'PTPN']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Wilmar Nabati Indonesia', 'wilmar-indonesia', NULL, 'Agribisnis & Perkebunan', ARRAY['Wilmar Indonesia', 'Wilmar']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sumber Alfaria Trijaya Tbk', 'alfamart', 'AMRT', 'Ritel & E-commerce', ARRAY['Alfamart', 'Sumber Alfaria Trijaya']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indomarco Prismatama', 'indomaret', NULL, 'Ritel & E-commerce', ARRAY['Indomaret']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Tokopedia', 'tokopedia', NULL, 'Ritel & E-commerce', ARRAY['Tokopedia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT GoTo Gojek Tokopedia Tbk', 'gojek-goto-group', 'GOTO', 'Ritel & E-commerce', ARRAY['Gojek GoTo Group', 'GoTo', 'Gojek']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Traveloka Indonesia', 'traveloka', NULL, 'Ritel & E-commerce', ARRAY['Traveloka']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Media Nusantara Citra Tbk', 'mnc-group', 'MNCN', 'Media & Hiburan', ARRAY['MNC Group', 'MNC']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Jurnalindo Aksara Grafika (Bisnis Indonesia)', 'bisnis-indonesia-group', NULL, 'Media & Hiburan', ARRAY['Bisnis Indonesia Group', 'Bisnis Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Trans Corporation', 'trans-corp', NULL, 'Media & Hiburan', ARRAY['Trans Corp', 'CT Corp']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Elang Mahkota Teknologi Tbk', 'emtek-group', 'EMTK', 'Media & Hiburan', ARRAY['Emtek Group', 'Emtek']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Agincourt Resources', 'agincourt-resources', NULL, 'Pertambangan & Emas', ARRAY['Agincourt Resources', 'Martabe']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Freeport McMoRan Indonesia', 'freeport-mcmoran-indonesia', NULL, 'Pertambangan & Emas', ARRAY['Freeport McMoRan Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Indika Energy Tbk', 'indika-energy', 'INDY', 'Pertambangan & Emas', ARRAY['Indika Energy']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Medco Energi Internasional Tbk', 'medco-energi', 'MEDC', 'Pertambangan & Emas', ARRAY['Medco Energi']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Jasa Raharja', 'jasa-raharja', NULL, 'Asuransi & Multifinance', ARRAY['Jasa Raharja']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Asuransi Astra Buana', 'asuransi-astra', NULL, 'Asuransi & Multifinance', ARRAY['Asuransi Astra']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('BPJS Ketenagakerjaan', 'bpjs-ketenagakerjaan', NULL, 'Asuransi & Multifinance', ARRAY['BPJS Ketenagakerjaan']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Taspen (Persero)', 'taspen', NULL, 'Asuransi & Multifinance', ARRAY['Taspen']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Garuda Indonesia (Persero) Tbk', 'garuda-indonesia', 'GIAA', 'Logistik & Transportasi', ARRAY['Garuda Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Angkasa Pura Indonesia', 'angkasa-pura', NULL, 'Logistik & Transportasi', ARRAY['Angkasa Pura']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pelabuhan Indonesia (Persero)', 'pelindo', NULL, 'Logistik & Transportasi', ARRAY['Pelindo']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Kereta Api Indonesia (Persero)', 'kereta-api-indonesia-kai', NULL, 'Logistik & Transportasi', ARRAY['Kereta Api Indonesia KAI', 'KAI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pupuk Indonesia (Persero)', 'pupuk-indonesia', NULL, 'Pupuk & Kimia', ARRAY['Pupuk Indonesia']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Petrokimia Gresik', 'petrokimia-gresik', NULL, 'Pupuk & Kimia', ARRAY['Petrokimia Gresik']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Chandra Asri Pacific Tbk', 'chandra-asri-petrochemical', 'TPIA', 'Pupuk & Kimia', ARRAY['Chandra Asri Petrochemical', 'Chandra Asri']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('Badan Amil Zakat Nasional (BAZNAS)', 'baznas', NULL, 'Lainnya', ARRAY['Baznas']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Sucofindo (Persero)', 'sucofindo', NULL, 'Lainnya', ARRAY['Sucofindo']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+INSERT INTO companies (name, slug, stock_code, industry_sector, alias_keywords) VALUES ('PT Pendidikan Maritim dan Logistik Indonesia', 'pmli-pendidikan-maritim-logistik', NULL, 'Lainnya', ARRAY['PMLI Pendidikan Maritim Logistik', 'PMLI']) ON CONFLICT (slug) DO UPDATE SET alias_keywords = EXCLUDED.alias_keywords;
+
+-- 2. Associate existing crawling_targets to company_id
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pertamina') WHERE source_name LIKE '%Pertamina%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pertamina-geothermal-energy') WHERE source_name LIKE '%Pertamina Geothermal Energy%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pertamina-ep') WHERE source_name LIKE '%Pertamina EP%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pertamina-hulu-energi') WHERE source_name LIKE '%Pertamina Hulu Energi%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pertamina-patra-niaga') WHERE source_name LIKE '%Pertamina Patra Niaga%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pln') WHERE source_name LIKE '%PLN%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pln-energi-gas') WHERE source_name LIKE '%PLN Energi Gas%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pgn') WHERE source_name LIKE '%PGN%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'inalum') WHERE source_name LIKE '%Inalum%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bukit-asam') WHERE source_name LIKE '%Bukit Asam%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'antam') WHERE source_name LIKE '%Antam%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'kilang-pertamina-internasional') WHERE source_name LIKE '%Kilang Pertamina Internasional%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'mind-id') WHERE source_name LIKE '%MIND ID%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'timah-tbk') WHERE source_name LIKE '%Timah Tbk%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'vale-indonesia') WHERE source_name LIKE '%Vale Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'freeport-indonesia') WHERE source_name LIKE '%Freeport Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'adaro-energy') WHERE source_name LIKE '%Adaro Energy%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'harbour-energy') WHERE source_name LIKE '%Harbour Energy%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-mandiri') WHERE source_name LIKE '%Bank Mandiri%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-rakyat-indonesia') WHERE source_name LIKE '%Bank Rakyat Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-negara-indonesia') WHERE source_name LIKE '%Bank Negara Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-central-asia') WHERE source_name LIKE '%Bank Central Asia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-kalbar') WHERE source_name LIKE '%Bank Kalbar%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-syariah-indonesia') WHERE source_name LIKE '%Bank Syariah Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-cimb-niaga') WHERE source_name LIKE '%Bank CIMB Niaga%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-danamon') WHERE source_name LIKE '%Bank Danamon%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-ocbc-nisp') WHERE source_name LIKE '%Bank OCBC NISP%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bank-permata') WHERE source_name LIKE '%Bank Permata%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'prudential-indonesia') WHERE source_name LIKE '%Prudential Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'aia-indonesia') WHERE source_name LIKE '%AIA Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'allianz-indonesia') WHERE source_name LIKE '%Allianz Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sun-life-indonesia') WHERE source_name LIKE '%Sun Life Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'finnet-indonesia') WHERE source_name LIKE '%Finnet Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bpr-bank-bapas-69') WHERE source_name LIKE '%BPR Bank Bapas 69%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'telkom-indonesia') WHERE source_name LIKE '%Telkom Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'telkomsel') WHERE source_name LIKE '%Telkomsel%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indosat-ooredoo-hutchison') WHERE source_name LIKE '%Indosat Ooredoo Hutchison%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'xl-axiata') WHERE source_name LIKE '%XL Axiata%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'smartfren') WHERE source_name LIKE '%Smartfren%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'global-infotech-solution') WHERE source_name LIKE '%Global Infotech Solution%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'unilever-indonesia') WHERE source_name LIKE '%Unilever Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'nestle-indonesia') WHERE source_name LIKE '%Nestle Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indofood-sukses-makmur') WHERE source_name LIKE '%Indofood Sukses Makmur%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'danone-indonesia') WHERE source_name LIKE '%Danone Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'mayora-indah') WHERE source_name LIKE '%Mayora Indah%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'wings-group') WHERE source_name LIKE '%Wings Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sarihusada-generasi-mahardhika') WHERE source_name LIKE '%Sarihusada Generasi Mahardhika%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'coca-cola-indonesia') WHERE source_name LIKE '%Coca-Cola Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sido-muncul') WHERE source_name LIKE '%Sido Muncul%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'kalbe-farma') WHERE source_name LIKE '%Kalbe Farma%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'astra-international') WHERE source_name LIKE '%Astra International%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'toyota-astra-motor') WHERE source_name LIKE '%Toyota Astra Motor%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'honda-prospect-motor') WHERE source_name LIKE '%Honda Prospect Motor%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'suzuki-indomobil') WHERE source_name LIKE '%Suzuki Indomobil%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'hyundai-motor-indonesia') WHERE source_name LIKE '%Hyundai Motor Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'semen-indonesia') WHERE source_name LIKE '%Semen Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indocement-tunggal-prakarsa') WHERE source_name LIKE '%Indocement Tunggal Prakarsa%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'holcim-indonesia') WHERE source_name LIKE '%Holcim Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'jasa-marga') WHERE source_name LIKE '%Jasa Marga%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'waskita-karya') WHERE source_name LIKE '%Waskita Karya%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'wijaya-karya-wika') WHERE source_name LIKE '%Wijaya Karya WIKA%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pembangunan-perumahan-pp') WHERE source_name LIKE '%Pembangunan Perumahan PP%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'tower-bersama-infrastructure-tbig') WHERE source_name LIKE '%Tower Bersama Infrastructure TBIG%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sinar-mas-group') WHERE source_name LIKE '%Sinar Mas Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indah-kiat-pulp-paper') WHERE source_name LIKE '%Indah Kiat Pulp Paper%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'cirebon-power') WHERE source_name LIKE '%Cirebon Power%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'kawasan-industri-terpadu-batang') WHERE source_name LIKE '%Kawasan Industri Terpadu Batang%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sinar-mas-agribusiness') WHERE source_name LIKE '%Sinar Mas Agribusiness%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sawit-sumbermas-sarana') WHERE source_name LIKE '%Sawit Sumbermas Sarana%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'fks-multi-agro-sejahtera') WHERE source_name LIKE '%FKS Multi Agro Sejahtera%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'astra-agro-lestari') WHERE source_name LIKE '%Astra Agro Lestari%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'perkebunan-nusantara-ptpn') WHERE source_name LIKE '%Perkebunan Nusantara PTPN%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'wilmar-indonesia') WHERE source_name LIKE '%Wilmar Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'alfamart') WHERE source_name LIKE '%Alfamart%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indomaret') WHERE source_name LIKE '%Indomaret%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'tokopedia') WHERE source_name LIKE '%Tokopedia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'gojek-goto-group') WHERE source_name LIKE '%Gojek GoTo Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'traveloka') WHERE source_name LIKE '%Traveloka%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'mnc-group') WHERE source_name LIKE '%MNC Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bisnis-indonesia-group') WHERE source_name LIKE '%Bisnis Indonesia Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'trans-corp') WHERE source_name LIKE '%Trans Corp%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'emtek-group') WHERE source_name LIKE '%Emtek Group%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'agincourt-resources') WHERE source_name LIKE '%Agincourt Resources%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'freeport-mcmoran-indonesia') WHERE source_name LIKE '%Freeport McMoRan Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'indika-energy') WHERE source_name LIKE '%Indika Energy%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'medco-energi') WHERE source_name LIKE '%Medco Energi%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'jasa-raharja') WHERE source_name LIKE '%Jasa Raharja%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'asuransi-astra') WHERE source_name LIKE '%Asuransi Astra%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'bpjs-ketenagakerjaan') WHERE source_name LIKE '%BPJS Ketenagakerjaan%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'taspen') WHERE source_name LIKE '%Taspen%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'garuda-indonesia') WHERE source_name LIKE '%Garuda Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'angkasa-pura') WHERE source_name LIKE '%Angkasa Pura%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pelindo') WHERE source_name LIKE '%Pelindo%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'kereta-api-indonesia-kai') WHERE source_name LIKE '%Kereta Api Indonesia KAI%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pupuk-indonesia') WHERE source_name LIKE '%Pupuk Indonesia%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'petrokimia-gresik') WHERE source_name LIKE '%Petrokimia Gresik%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'chandra-asri-petrochemical') WHERE source_name LIKE '%Chandra Asri Petrochemical%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'baznas') WHERE source_name LIKE '%Baznas%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'sucofindo') WHERE source_name LIKE '%Sucofindo%';
+UPDATE crawling_targets SET company_id = (SELECT id FROM companies WHERE slug = 'pmli-pendidikan-maritim-logistik') WHERE source_name LIKE '%PMLI Pendidikan Maritim Logistik%';
