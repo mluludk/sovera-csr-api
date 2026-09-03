@@ -8,6 +8,7 @@ VALUES
     ('IDX Sustainability Reports Hub', 'PDF_DOCUMENT', 'https://www.idx.co.id/id/perusahaan-tercatat/laporan-keberlanjutan', 24, true, NULL),
 
     -- 2. Portal Berita Finansial, Bisnis, dan CSR (RSS Feed)
+    ('Google News RSS - CSR Perusahaan Indonesia', 'NEWS_RSS', 'https://news.google.com/rss/search?q=CSR+perusahaan+Indonesia&hl=id&gl=ID&ceid=ID:id', 4, true, NULL),
     ('Bisnis.com RSS Feed - CSR & Finansial', 'NEWS_RSS', 'https://www.bisnis.com/rss', 4, true, NULL),
     ('Kontan.co.id RSS Feed - Keuangan & Industri', 'NEWS_RSS', 'https://www.kontan.co.id/rss', 4, true, NULL),
     ('Antara News RSS - Warta Ekonomi & Humaniora', 'NEWS_RSS', 'https://www.antaranews.com/rss/ekonomi', 4, true, NULL),

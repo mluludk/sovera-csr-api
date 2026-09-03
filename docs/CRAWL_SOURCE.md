@@ -23,6 +23,9 @@ Kanal ini merupakan sumber data paling valid dengan nilai akurasi finansial dan 
 
 Menggunakan RSS Feed resmi portal media nasional memungkinkan *crawler* berjalan ringan tanpa risiko pemblokiran IP (*IP blocking*):
 
+* **Google News RSS - Search Query CSR Indonesia (`https://news.google.com/rss/search?q=CSR+perusahaan+Indonesia&hl=id&gl=ID&ceid=ID:id`):**
+  * Memantau seluruh artikel berita terbaru dari media Indonesia terkait pengumuman CSR dan alokasi dana TJSL korporasi.
+
 * **Bisnis.com (Kategori CSR, Industri, & Finansial):**
 * Menyediakan feed berita berkala terkait alokasi hibah dan kegiatan TJSL perusahaan swasta maupun multinasional.
 
